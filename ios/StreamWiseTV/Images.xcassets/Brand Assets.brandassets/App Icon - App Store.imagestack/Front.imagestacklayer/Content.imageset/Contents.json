@@ -1,0 +1,12 @@
+{
+  "images": [
+    {
+      "filename": "layer-appstore.png",
+      "idiom": "tv"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
