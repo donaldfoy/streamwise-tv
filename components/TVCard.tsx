@@ -7,6 +7,7 @@ import {
   Animated,
   Platform,
   ViewStyle,
+  StyleProp,
 } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -30,8 +31,8 @@ type TVCardProps = {
   size?: CardSize;
   onPress?: (item: ContentItem) => void;
   hasTVPreferredFocus?: boolean;
-  cardRef?: React.RefObject<View>;
-  style?: ViewStyle;
+  cardRef?: React.RefObject<View | null>;
+  style?: StyleProp<ViewStyle>;
 };
 
 export function TVCard({

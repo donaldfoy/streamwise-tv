@@ -3,7 +3,7 @@
  * to a plain View on web/other platforms.
  */
 import React, { ReactNode } from "react";
-import { Platform, View, ViewStyle } from "react-native";
+import { Platform, View, ViewStyle, StyleProp } from "react-native";
 
 let NativeTVFocusGuideView: React.ComponentType<any> | null = null;
 
@@ -19,7 +19,7 @@ if (Platform.OS !== "web") {
 type Props = {
   children: ReactNode;
   destinations?: React.RefObject<any>[];
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   autoFocus?: boolean;
   trapFocusLeft?: boolean;
   trapFocusRight?: boolean;

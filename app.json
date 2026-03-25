@@ -28,12 +28,7 @@
     },
     "plugins": [
       "@react-native-tvos/config-tv",
-      [
-        "expo-router",
-        {
-          "origin": "https://replit.com/"
-        }
-      ],
+      "expo-router",
       "expo-font"
     ],
     "experiments": {

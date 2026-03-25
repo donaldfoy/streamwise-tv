@@ -19,6 +19,14 @@ pod install
 cd ..
 ```
 
+### Development
+
+```bash
+npm run dev
+```
+
+Legacy Replit startup is preserved in `npm run dev:replit`.
+
 ### Run (Apple TV Simulator or device)
 
 - Open `ios/StreamWiseTV.xcworkspace` in Xcode (preferred when using Pods)
@@ -33,4 +41,5 @@ cd ..
 ### Notes
 
 - Local Xcode env overrides go in `ios/.xcode.env.local` (not committed).
+- Release and bug triage docs live in `docs/`.
 

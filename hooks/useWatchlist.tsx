@@ -29,14 +29,18 @@ export function WatchlistProvider({ children }: { children: ReactNode }) {
       if (raw) {
         try {
           setWatchlist(JSON.parse(raw));
-        } catch {}
+        } catch (error) {
+          console.warn("Failed to parse watchlist from storage:", error);
+        }
       }
     });
   }, []);
 
   const persist = useCallback((items: ContentItem[]) => {
     setWatchlist(items);
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(items)).catch((error) => {
+      console.warn("Failed to persist watchlist:", error);
+    });
   }, []);
 
   const isInWatchlist = useCallback(

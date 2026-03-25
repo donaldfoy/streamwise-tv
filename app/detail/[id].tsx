@@ -108,6 +108,8 @@ export default function DetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const { toggleWatchlist, isInWatchlist } = useWatchlist();
+  const scrollRef = useRef<ScrollView>(null);
+  const [providersSectionY, setProvidersSectionY] = useState(0);
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
@@ -153,6 +155,7 @@ export default function DetailScreen() {
   return (
     <View style={[styles.root, { paddingTop: topPad }]}>
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: bottomPad + 80 }}
         showsVerticalScrollIndicator={false}
@@ -194,7 +197,6 @@ export default function DetailScreen() {
                 source={{ uri: posterUrl(item.poster_path, "w500") }}
                 style={styles.posterImage}
                 contentFit="cover"
-                borderRadius={14}
                 transition={400}
               />
               {/* Streaming availability indicator */}
@@ -252,9 +254,9 @@ export default function DetailScreen() {
               <TVFocusGuideWrapper style={styles.actions}>
                 <ActionButton
                   icon="play"
-                  label="Play Now"
+                  label="View Options"
                   variant="primary"
-                  onPress={() => {}}
+                  onPress={() => scrollRef.current?.scrollTo({ y: providersSectionY, animated: true })}
                   hasTVPreferredFocus
                 />
                 <ActionButton
@@ -266,9 +268,9 @@ export default function DetailScreen() {
                 />
                 <ActionButton
                   icon="share-2"
-                  label="Share"
+                  label="Back to Browse"
                   variant="secondary"
-                  onPress={() => {}}
+                  onPress={() => router.back()}
                 />
               </TVFocusGuideWrapper>
             </View>
@@ -276,7 +278,10 @@ export default function DetailScreen() {
 
           {/* Where to Watch */}
           {allProviders.length > 0 && (
-            <View style={styles.section}>
+            <View
+              style={styles.section}
+              onLayout={(event) => setProvidersSectionY(event.nativeEvent.layout.y - 24)}
+            >
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionLabel}>WHERE TO WATCH</Text>
                 <View style={styles.sectionLine} />
@@ -461,6 +466,7 @@ const styles = StyleSheet.create({
   posterImage: {
     width: 240,
     height: 360,
+    borderRadius: 14,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 16 },
     shadowOpacity: 0.6,
