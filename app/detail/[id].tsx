@@ -208,7 +208,7 @@ function VideoTile({ video, onPlay }: { video: Video; onPlay: (key: string, titl
         style={[styles.videoTile, focused && styles.videoTileFocused]}>
         <Image source={{ uri: thumb }} style={styles.videoThumb} contentFit="cover" borderRadius={10} />
         <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.8)"]}
+          colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.8)"]}
           style={[StyleSheet.absoluteFill, { borderRadius: 10 }]}
         />
         <View style={styles.videoPlayBtn}>
@@ -255,7 +255,7 @@ function RecommendedCard({ item }: { item: ContentItem }) {
           contentFit="cover"
         />
         <LinearGradient
-          colors={["transparent", "rgba(10,10,15,0.95)"]}
+          colors={["rgba(10,10,15,0)", "rgba(10,10,15,0.95)"]}
           style={styles.recGradient}
         />
         <View style={styles.recInfo}>
@@ -427,17 +427,17 @@ export default function DetailScreen() {
 
       {/* Gradients */}
       <LinearGradient
-        colors={["rgba(10,10,15,0.99)", "rgba(10,10,15,0.97)", "rgba(10,10,15,0.85)", "rgba(10,10,15,0.3)", "transparent"]}
+        colors={["rgba(10,10,15,0.99)", "rgba(10,10,15,0.94)", "rgba(10,10,15,0.6)", "rgba(10,10,15,0)"]}
         style={styles.gradientLeft}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
       />
       <LinearGradient
-        colors={["rgba(10,10,15,0.75)", "transparent"]}
+        colors={["rgba(10,10,15,0.75)", "rgba(10,10,15,0)"]}
         style={styles.gradientTop}
         start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
       />
       <LinearGradient
-        colors={["transparent", "rgba(10,10,15,0.98)"]}
+        colors={["rgba(10,10,15,0)", "rgba(10,10,15,0.98)"]}
         style={styles.gradientBottom}
         start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
       />
@@ -456,7 +456,6 @@ export default function DetailScreen() {
               source={{ uri: posterUrl(item.poster_path, "w500") }}
               style={styles.poster}
               contentFit="cover"
-              borderRadius={12}
               transition={400}
             />
 
