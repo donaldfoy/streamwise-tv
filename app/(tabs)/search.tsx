@@ -145,7 +145,7 @@ export default function SearchScreen() {
   }, [data]);
 
   const handleCardPress = useCallback((item: ContentItem) => {
-    router.push({ pathname: "/detail/[id]", params: { id: String(item.id) } });
+    router.push({ pathname: "/detail/[id]", params: { id: String(item.id), type: item.media_type } });
   }, []);
 
   const results = data ?? [];
