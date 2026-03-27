@@ -1,9 +1,11 @@
 import type { ContentItem, SearchResponse } from "./types";
 
 const API_BASE = "https://streamwise.live/api";
-// Detail data comes from our local API server (has TMDB key + full append_to_response)
-const DETAIL_API_BASE = "http://localhost:8080/api";
+const TMDB_BASE = "https://api.themoviedb.org/3";
 const IMG_BASE = "https://image.tmdb.org/t/p";
+
+// TMDB API key — set EXPO_PUBLIC_TMDB_API_KEY in your .env file
+const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY ?? "";
 
 export function posterUrl(path: string | null | undefined, size: "w300" | "w500" | "original" = "w500"): string {
   if (!path) return "";
@@ -60,7 +62,11 @@ export async function fetchSearch(query: string): Promise<ContentItem[]> {
 }
 
 export async function fetchDetail(mediaType: "movie" | "tv", id: number | string): Promise<any> {
-  const res = await fetch(`${DETAIL_API_BASE}/${mediaType}/${id}`);
-  if (!res.ok) throw new Error(`Failed to fetch detail for ${mediaType}/${id}`);
+  if (!TMDB_KEY) throw new Error("EXPO_PUBLIC_TMDB_API_KEY not set");
+  const url = new URL(`${TMDB_BASE}/${mediaType}/${id}`);
+  url.searchParams.set("api_key", TMDB_KEY);
+  url.searchParams.set("append_to_response", "credits,videos,watch/providers,recommendations,similar");
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error(`TMDB ${res.status} for ${mediaType}/${id}`);
   return res.json();
 }
