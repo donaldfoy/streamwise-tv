@@ -15,7 +15,9 @@
   },
   "expo": {
     "install": {
-      "exclude": ["react-native"]
+      "exclude": [
+        "react-native"
+      ]
     }
   },
   "dependencies": {
@@ -45,6 +47,7 @@
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-web": "^0.21.0",
+    "react-native-webview": "^13.16.1",
     "zod": "^3.25.76",
     "zod-validation-error": "^3.4.0"
   },
