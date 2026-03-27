@@ -262,11 +262,7 @@ const styles = StyleSheet.create({
   },
   serviceCardFocused: {
     borderColor: Colors.focusRing,
-    backgroundColor: Colors.surfaceElevated,
-    shadowColor: Colors.focusRing,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 14,
+    backgroundColor: "rgba(99,102,241,0.18)",
   },
   serviceLogo: {
     width: 64,
