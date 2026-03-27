@@ -21,6 +21,8 @@
         "UIRequiresFullScreen": true,
         "ITSAppUsesNonExemptEncryption": false,
         "LSApplicationQueriesSchemes": [
+          "youtube",
+          "vnd.youtube",
           "nflx",
           "aiv",
           "hulu",
