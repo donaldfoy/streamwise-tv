@@ -1,31 +1,23 @@
 /**
  * Expo config plugin: Nil-safe native component registration
  *
- * React Native's generated RCTThirdPartyFabricComponentsProvider.mm uses a
- * literal NSDictionary for third-party component registration. If any class
- * is absent (e.g. a module not linked for tvOS), NSClassFromString() returns
- * nil and inserting nil into an NSDictionary literal crashes at startup.
+ * Injects Ruby patch code INSIDE the existing post_install block by tracking
+ * parenthesis/block depth line-by-line — not with regex — so it works
+ * correctly with multi-line react_native_post_install(...) calls.
  *
- * FIX: Inject Ruby patch code INSIDE the existing post_install block that
- * Expo already generates — after react_native_post_install(installer, ...).
- * CocoaPods only allows ONE post_install block, so we must merge, not append.
- *
- * The patch finds the generated .mm file after pod install and rewrites:
- *   thirdPartyComponents = @{ @"Foo": NSClassFromString(@"Foo"), ... };
- * into nil-safe guarded insertions that skip missing classes silently.
+ * CocoaPods only allows ONE post_install block. This plugin NEVER adds a
+ * second one; it only inserts lines inside the existing block.
  */
 
 const { withDangerousMod } = require("@expo/config-plugins");
 const fs = require("fs");
 const path = require("path");
 
-const MARKER = "# [withNilSafeNativeComponents]";
+const MARKER = "[withNilSafeNativeComponents]";
 
-// Ruby code to inject INSIDE the existing post_install block.
-// Uses prefixed variable names (__ns_*) to avoid colliding with anything
-// the existing block declares.
-const PATCH_BODY = `
-  ${MARKER} nil-safe patch — injected by withNilSafeNativeComponents plugin
+// Ruby lines to inject (installer is in scope, prefixed vars avoid collisions)
+const PATCH_LINES = `
+  # ${MARKER} nil-safe patch — auto-injected, do not edit manually
   __ns_files = Dir.glob([
     "#{installer.sandbox.root}/**/RCTThirdPartyFabricComponentsProvider.mm",
     "#{installer.sandbox.root}/**/*ThirdParty*ComponentsProvider.mm",
@@ -46,9 +38,70 @@ const PATCH_BODY = `
     __ns_patched = __ns_content.gsub(/thirdPartyComponents = @\\{[\\s\\S]*?\\};/, __ns_replacement)
     if __ns_patched != __ns_content
       File.write(__ns_file, __ns_patched)
-      puts "[withNilSafeNativeComponents] Patched #{File.basename(__ns_file)} — nil classes will be skipped"
+      puts "${MARKER} Patched #{File.basename(__ns_file)} — nil classes will be skipped safely"
     end
   end`;
+
+/**
+ * Find where react_native_post_install(...) ends by tracking paren depth.
+ * Returns the 0-based line index of the closing ')' line, or -1 if not found.
+ */
+function findReactNativePostInstallEnd(lines) {
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].includes("react_native_post_install(")) continue;
+    // Found the opening line — track parenthesis depth from here
+    let depth = 0;
+    for (let j = i; j < lines.length; j++) {
+      for (const ch of lines[j]) {
+        if (ch === "(") depth++;
+        else if (ch === ")") depth--;
+      }
+      if (depth === 0) return j; // closing paren is on line j
+    }
+  }
+  return -1;
+}
+
+/**
+ * Find the line index of the closing `end` for the `post_install do |installer|`
+ * block by tracking Ruby block-opening keywords vs `end` at the same indent.
+ * Returns -1 if not found.
+ */
+function findPostInstallEnd(lines) {
+  // Keywords that open a new block (and therefore need a matching `end`)
+  const OPENERS = /\b(do|begin|def|class|module|if|unless|case|while|until|for)\b/;
+
+  for (let i = 0; i < lines.length; i++) {
+    if (!/post_install\s+do\s+\|installer\|/.test(lines[i])) continue;
+
+    // The indent of the `post_install` line itself
+    const indent = lines[i].match(/^(\s*)/)[1].length;
+    let depth = 1; // we're already inside this block
+
+    for (let j = i + 1; j < lines.length; j++) {
+      const trimmed = lines[j].trim();
+
+      // Skip blank lines and comments
+      if (trimmed === "" || trimmed.startsWith("#")) continue;
+
+      // Count block openers on this line (do, if, def, etc.)
+      // Use a simple heuristic: count `do` / block keywords that add depth
+      const openerMatches = trimmed.match(/\bdo\b|\bbegin\b|\bdef\b|\bclass\b|\bmodule\b/g);
+      if (openerMatches) depth += openerMatches.length;
+
+      // An `end` at the same or lesser indentation closes our target block
+      if (/^\s*end\s*$/.test(lines[j])) {
+        const endIndent = lines[j].match(/^(\s*)/)[1].length;
+        if (endIndent <= indent) {
+          return j; // this is the matching `end` for our post_install block
+        }
+        depth--;
+        if (depth <= 0) return j;
+      }
+    }
+  }
+  return -1;
+}
 
 /** @type {import('@expo/config-plugins').ConfigPlugin} */
 module.exports = function withNilSafeNativeComponents(config) {
@@ -64,52 +117,44 @@ module.exports = function withNilSafeNativeComponents(config) {
         return config;
       }
 
-      let podfile = fs.readFileSync(podfilePath, "utf8");
+      const raw = fs.readFileSync(podfilePath, "utf8");
 
       // Already patched — skip.
-      if (podfile.includes(MARKER)) {
+      if (raw.includes(MARKER)) {
         return config;
       }
 
-      // ── Strategy 1: inject after react_native_post_install(installer…) ──
-      // Expo's generated Podfile has a post_install block containing a call
-      // like: react_native_post_install(installer, ...) or
-      //        react_native_post_install(installer)
-      // We insert our Ruby block on the very next line after that call.
-      const rnPostInstallRe = /([ \t]*react_native_post_install\s*\([^)]*\)[ \t]*\n)/;
-      if (rnPostInstallRe.test(podfile)) {
-        podfile = podfile.replace(rnPostInstallRe, `$1${PATCH_BODY}\n`);
-        fs.writeFileSync(podfilePath, podfile);
+      const lines = raw.split("\n");
+
+      // ── Strategy 1: after react_native_post_install(…) closing paren ──────
+      const rniEnd = findReactNativePostInstallEnd(lines);
+      if (rniEnd >= 0) {
+        lines.splice(rniEnd + 1, 0, PATCH_LINES);
+        fs.writeFileSync(podfilePath, lines.join("\n"));
         console.log(
-          "[withNilSafeNativeComponents] Injected nil-safe patch inside existing post_install block (after react_native_post_install)"
+          `[withNilSafeNativeComponents] Injected nil-safe patch after react_native_post_install (line ${rniEnd + 1})`
         );
         return config;
       }
 
-      // ── Strategy 2: inject before the closing `end` of post_install ──
-      // Fallback: find `post_install do |installer|` block and insert before
-      // its final `end`. This works when the exact anchor above isn't present.
-      const postInstallRe = /(post_install do \|installer\|)([\s\S]*?)(^end\b)/m;
-      if (postInstallRe.test(podfile)) {
-        podfile = podfile.replace(
-          postInstallRe,
-          (_, open, body, close) => `${open}${body}${PATCH_BODY}\n${close}`
-        );
-        fs.writeFileSync(podfilePath, podfile);
+      // ── Strategy 2: before the closing `end` of post_install block ────────
+      const postInstallEndLine = findPostInstallEnd(lines);
+      if (postInstallEndLine >= 0) {
+        lines.splice(postInstallEndLine, 0, PATCH_LINES);
+        fs.writeFileSync(podfilePath, lines.join("\n"));
         console.log(
-          "[withNilSafeNativeComponents] Injected nil-safe patch inside existing post_install block (before closing end)"
+          `[withNilSafeNativeComponents] Injected nil-safe patch before post_install closing end (line ${postInstallEndLine})`
         );
         return config;
       }
 
-      // ── Strategy 3: no existing post_install — create one ──
-      // Last resort only. CocoaPods allows exactly one, and Expo always
-      // generates one, so this branch should rarely if ever trigger.
-      const standalone = `\npost_install do |installer|\n${PATCH_BODY}\nend\n`;
-      podfile = podfile.trimEnd() + standalone;
-      fs.writeFileSync(podfilePath, podfile);
+      // ── Strategy 3: no post_install at all — create one ──────────────────
+      // This should never happen with Expo-generated Podfiles.
+      const standalone =
+        `\npost_install do |installer|\n${PATCH_LINES}\nend\n`;
+      fs.writeFileSync(podfilePath, raw.trimEnd() + standalone);
       console.log(
-        "[withNilSafeNativeComponents] No existing post_install found — created new block (verify no duplicate post_install warnings)"
+        "[withNilSafeNativeComponents] No post_install block found — created standalone block"
       );
 
       return config;
