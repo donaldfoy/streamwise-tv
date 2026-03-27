@@ -425,10 +425,7 @@ const styles = StyleSheet.create({
   },
   rowPressableFocused: {
     borderColor: Colors.focusRing,
-    shadowColor: Colors.focusRing,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
+    backgroundColor: "rgba(99,102,241,0.1)",
   },
 
   // Poster
@@ -539,10 +536,6 @@ const styles = StyleSheet.create({
   removeBtnFocused: {
     backgroundColor: Colors.accentRed,
     borderColor: Colors.accentRed,
-    shadowColor: Colors.accentRed,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
   },
 
   separator: {
