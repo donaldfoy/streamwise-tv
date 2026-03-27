@@ -245,8 +245,8 @@ function RecommendedCard({ item }: { item: ContentItem }) {
   }, [scale]);
 
   const handlePress = useCallback(() => {
-    router.push({ pathname: "/detail/[id]", params: { id: String(item.id) } });
-  }, [item.id]);
+    router.push({ pathname: "/detail/[id]", params: { id: String(item.id), type: (item as any).media_type ?? "movie" } });
+  }, [item.id, (item as any).media_type]);
 
   return (
     <Animated.View style={[styles.recCardOuter, { transform: [{ scale }] }]}>
@@ -310,7 +310,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 // ─── Detail Screen ────────────────────────────────────────────────────────────
 
 export default function DetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, type } = useLocalSearchParams<{ id: string; type?: string }>();
   const { toggleWatchlist, isInWatchlist } = useWatchlist();
   const { width, height } = useWindowDimensions();
   const [detail, setDetail] = useState<DetailItem | null>(null);
@@ -319,16 +319,46 @@ export default function DetailScreen() {
   const baseItem = getItem(id ?? "");
   const inList = baseItem ? isInWatchlist(baseItem.id) : false;
 
+  // Prefer contentStore item, fall back to TMDB response once loaded
   const item: DetailItem | null = detail ?? (baseItem ? { ...baseItem, genres: undefined } : null);
 
+  // Resolved media type: from URL param or contentStore
+  const mediaType = (type as "movie" | "tv") ?? baseItem?.media_type ?? "movie";
+
   useEffect(() => {
-    if (!id || !baseItem) return;
+    if (!id) return;
     setLoading(true);
-    fetchDetail(baseItem.media_type, id)
-      .then((data: DetailItem) => setDetail({ ...data, media_type: baseItem.media_type, streaming: baseItem.streaming }))
+    fetchDetail(mediaType, id)
+      .then((data: any) => {
+        // Normalise TV `name` → `title` and attach media_type/streaming from contentStore
+        const normalised: DetailItem = {
+          ...data,
+          title: data.title ?? data.name ?? "",
+          media_type: mediaType,
+          streaming: baseItem?.streaming,
+          // TMDB fields that don't exist on ContentItem
+          genre_ids: data.genre_ids ?? (data.genres?.map((g: any) => g.id) ?? []),
+          release_date: data.release_date ?? data.first_air_date ?? "",
+          poster_path: data.poster_path ?? "",
+          backdrop_path: data.backdrop_path ?? "",
+          overview: data.overview ?? "",
+          vote_average: data.vote_average ?? 0,
+          popularity: data.popularity ?? 0,
+        };
+        setDetail(normalised);
+      })
       .catch((err: unknown) => console.error("[Detail] TMDB fetch failed:", err))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, mediaType]);
+
+  // Show spinner while fetching if we have no baseItem to display yet
+  if (!item && loading) {
+    return (
+      <View style={styles.notFound}>
+        <ActivityIndicator size="large" color={Colors.tint} />
+      </View>
+    );
+  }
 
   if (!item) {
     return (
