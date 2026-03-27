@@ -135,7 +135,7 @@ export function TVCard({
 
         {/* Bottom gradient overlay */}
         <LinearGradient
-          colors={["transparent", "rgba(10,10,15,0.98)"]}
+          colors={["rgba(10,10,15,0)", "rgba(10,10,15,0.98)"]}
           style={styles.gradient}
           start={{ x: 0, y: 0.38 }}
           end={{ x: 0, y: 1 }}
