@@ -12,23 +12,15 @@ type ContentRowProps = {
   onCardPress?: (item: ContentItem) => void;
   firstItemFocused?: boolean;
   /**
-   * Called once after the last card mounts, with the ref to that card's
-   * Pressable view. The parent uses this to compute the node handle needed
-   * for nextFocusUp wiring on the row below.
+   * Called after mount with all card refs for this row (index-stable,
+   * non-null at call time). Parent stores these for programmatic focus.
    */
-  onLastCardMount?: (ref: React.RefObject<View>) => void;
+  onRefsReady?: (refs: React.RefObject<View>[]) => void;
   /**
-   * Node handle (from findNodeHandle) of the last card in the row directly
-   * above this one. When a card's column index is >= the row above's count,
-   * the native spatial engine can't find a direct target — we override
-   * nextFocusUp to land on this handle instead.
+   * Called whenever a card in this row receives focus,
+   * reporting its item index. Parent uses this to track current position.
    */
-  nextFocusUpHandle?: number;
-  /**
-   * Number of cards in the row above. Cards at index >= this value get
-   * nextFocusUp wired to nextFocusUpHandle.
-   */
-  rowAboveCardCount?: number;
+  onCardFocus?: (itemIndex: number) => void;
 };
 
 export function ContentRow({
@@ -37,17 +29,27 @@ export function ContentRow({
   cardSize = "md",
   onCardPress,
   firstItemFocused = false,
-  onLastCardMount,
-  nextFocusUpHandle,
-  rowAboveCardCount,
+  onRefsReady,
+  onCardFocus,
 }: ContentRowProps) {
-  const firstCardRef = useRef<View>(null);
-  const lastCardRef = useRef<View>(null);
+  /**
+   * Stable container so refs survive re-renders without being recreated.
+   * We grow the array as items arrive; we never shrink it (stale refs are
+   * harmless — the event handler clamps to the live item count via
+   * rowCardRefsMap which is updated on every mount).
+   */
+  const refsContainer = useRef<React.RefObject<View>[]>([]);
+  while (refsContainer.current.length < items.length) {
+    refsContainer.current.push({ current: null } as React.RefObject<View>);
+  }
+  const cardRefs = refsContainer.current.slice(0, items.length);
 
   useEffect(() => {
-    if (onLastCardMount && items.length > 0) {
-      onLastCardMount(lastCardRef);
+    if (onRefsReady && items.length > 0) {
+      onRefsReady(cardRefs);
     }
+  // cardRefs identity changes each render (slice) but the ref objects inside
+  // are stable. We only need to call onRefsReady once after mount.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -62,47 +64,25 @@ export function ContentRow({
       trapFocusRight={false}
     >
       <Text style={styles.sectionTitle}>{title}</Text>
-      <TVFocusGuideWrapper
-        destinations={firstItemFocused ? [firstCardRef] : undefined}
-        trapFocusUp={false}
-        trapFocusDown={false}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        decelerationRate="fast"
+        style={{ height: height + 32 }}
       >
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-          decelerationRate="fast"
-          style={{ height: height + 32 }}
-        >
-          {items.map((item, index) => {
-            const isFirst = index === 0;
-            const isLast = index === items.length - 1;
-
-            /*
-             * nextFocusUp override: only applied to cards whose column
-             * index is beyond the row above's card count. For those cards,
-             * the native spatial engine finds no target directly above,
-             * so we redirect to the last visible card in the row above.
-             */
-            const needsUpOverride =
-              nextFocusUpHandle !== undefined &&
-              rowAboveCardCount !== undefined &&
-              index >= rowAboveCardCount;
-
-            return (
-              <TVCard
-                key={`${item.id}-${index}`}
-                item={item}
-                size={cardSize}
-                onPress={onCardPress}
-                hasTVPreferredFocus={firstItemFocused && isFirst}
-                cardRef={isFirst ? firstCardRef : isLast ? lastCardRef : undefined}
-                nextFocusUp={needsUpOverride ? nextFocusUpHandle : undefined}
-              />
-            );
-          })}
-        </ScrollView>
-      </TVFocusGuideWrapper>
+        {items.map((item, index) => (
+          <TVCard
+            key={`${item.id}-${index}`}
+            item={item}
+            size={cardSize}
+            onPress={onCardPress}
+            hasTVPreferredFocus={firstItemFocused && index === 0}
+            cardRef={cardRefs[index]}
+            onFocusCallback={() => onCardFocus?.(index)}
+          />
+        ))}
+      </ScrollView>
     </TVFocusGuideWrapper>
   );
 }
