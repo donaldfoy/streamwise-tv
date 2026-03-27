@@ -12,7 +12,7 @@ import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
-import { fetchTrending } from "@/constants/api";
+import { fetchTrending, fetchMovies, fetchTV } from "@/constants/api";
 import { storeItems } from "@/constants/contentStore";
 import { HeroBanner } from "@/components/HeroBanner";
 import { ContentRow } from "@/components/ContentRow";
@@ -24,22 +24,39 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { toggleWatchlist, isInWatchlist } = useWatchlist();
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const trending = useQuery({
     queryKey: ["trending"],
     queryFn: fetchTrending,
   });
 
+  const movies = useQuery({
+    queryKey: ["movies"],
+    queryFn: fetchMovies,
+  });
+
+  const tvShows = useQuery({
+    queryKey: ["tv"],
+    queryFn: fetchTV,
+  });
+
   useEffect(() => {
-    if (data) storeItems(data);
-  }, [data]);
+    if (trending.data) storeItems(trending.data);
+  }, [trending.data]);
+
+  useEffect(() => {
+    if (movies.data) storeItems(movies.data);
+  }, [movies.data]);
+
+  useEffect(() => {
+    if (tvShows.data) storeItems(tvShows.data);
+  }, [tvShows.data]);
 
   const handleCardPress = (item: ContentItem) => {
     router.push({ pathname: "/detail/[id]", params: { id: String(item.id) } });
   };
 
-  const handleMoreInfo = (item: ContentItem) => {
-    router.push({ pathname: "/detail/[id]", params: { id: String(item.id) } });
-  };
+  const isLoading = trending.isLoading && movies.isLoading && tvShows.isLoading;
+  const isError = trending.isError && movies.isError && tvShows.isError;
 
   if (isLoading) {
     return (
@@ -50,7 +67,7 @@ export default function HomeScreen() {
     );
   }
 
-  if (isError || !data) {
+  if (isError) {
     return (
       <View style={styles.centered}>
         <Feather name="wifi-off" size={52} color={Colors.surfaceElevated} />
@@ -60,12 +77,16 @@ export default function HomeScreen() {
     );
   }
 
-  const featured = data[0];
-  const movies = data.filter((i) => i.media_type === "movie");
-  const tvShows = data.filter((i) => i.media_type === "tv");
-  const popular = [...data]
+  const trendingData = trending.data ?? [];
+  const moviesData = movies.data ?? [];
+  const tvData = tvShows.data ?? [];
+
+  const featured = trendingData[0];
+
+  const popular = [...trendingData, ...moviesData, ...tvData]
+    .filter((item, idx, arr) => arr.findIndex((i) => i.id === item.id) === idx)
     .sort((a, b) => b.popularity - a.popularity)
-    .slice(0, 10);
+    .slice(0, 15);
 
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
@@ -79,27 +100,36 @@ export default function HomeScreen() {
         {featured && (
           <HeroBanner
             item={featured}
-            onPlay={handleMoreInfo}
-            onMoreInfo={handleMoreInfo}
+            onPlay={handleCardPress}
+            onMoreInfo={handleCardPress}
             onAddToList={toggleWatchlist}
             isInWatchlist={isInWatchlist(featured.id)}
           />
         )}
 
         <View style={styles.rows}>
-          {movies.length > 0 && (
+          {trendingData.length > 0 && (
             <ContentRow
-              title="Trending Movies"
-              items={movies}
+              title="Trending Now"
+              items={trendingData}
+              cardSize="lg"
+              onCardPress={handleCardPress}
+            />
+          )}
+
+          {moviesData.length > 0 && (
+            <ContentRow
+              title="Movies"
+              items={moviesData}
               cardSize="md"
               onCardPress={handleCardPress}
             />
           )}
 
-          {tvShows.length > 0 && (
+          {tvData.length > 0 && (
             <ContentRow
-              title="Trending TV Shows"
-              items={tvShows}
+              title="TV Shows"
+              items={tvData}
               cardSize="md"
               onCardPress={handleCardPress}
             />
@@ -109,17 +139,10 @@ export default function HomeScreen() {
             <ContentRow
               title="Popular Right Now"
               items={popular}
-              cardSize="lg"
+              cardSize="sm"
               onCardPress={handleCardPress}
             />
           )}
-
-          <ContentRow
-            title="All Trending"
-            items={data}
-            cardSize="sm"
-            onCardPress={handleCardPress}
-          />
         </View>
       </ScrollView>
     </TVFocusGuideWrapper>
