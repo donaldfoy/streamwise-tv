@@ -125,10 +125,11 @@ function ProviderChip({ provider }: { provider: StreamingProvider }) {
   const handlePress = useCallback(async () => {
     const scheme = PROVIDER_SCHEMES[provider.provider_id];
     if (scheme) {
-      const canOpen = await Linking.canOpenURL(scheme);
-      if (canOpen) {
-        Linking.openURL(scheme);
+      try {
+        await Linking.openURL(scheme);
         return;
+      } catch {
+        // App not installed — fall through to alert
       }
     }
     Alert.alert(
