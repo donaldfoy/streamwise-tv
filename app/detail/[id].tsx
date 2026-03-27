@@ -310,8 +310,19 @@ export default function DetailScreen() {
   const { width, height } = useWindowDimensions();
   const [detail, setDetail] = useState<DetailItem | null>(null);
   const [loading, setLoading] = useState(false);
-  const playVideo = useCallback((key: string, _title: string) => {
-    Linking.openURL(`https://www.youtube.com/watch?v=${key}`);
+  const playVideo = useCallback((key: string, title: string) => {
+    // tvOS has no browser — use YouTube app scheme; fall back with a helpful message
+    const youtubeApp = `vnd.youtube://${key}`;
+    Linking.openURL(youtubeApp).catch(() => {
+      const fallback = `youtube://watch?v=${key}`;
+      Linking.openURL(fallback).catch(() => {
+        Alert.alert(
+          "YouTube Required",
+          `Install the YouTube app on your Apple TV to watch "${title}".`,
+          [{ text: "OK" }]
+        );
+      });
+    });
   }, []);
 
   const baseItem = getItem(id ?? "");
