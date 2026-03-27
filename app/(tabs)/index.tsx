@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import {
   View,
   ScrollView,
@@ -18,38 +18,31 @@ import { HeroBanner } from "@/components/HeroBanner";
 import { ContentRow } from "@/components/ContentRow";
 import { TVFocusGuideWrapper } from "@/components/TVFocusGuideViewWrapper";
 import { useWatchlist } from "@/hooks/useWatchlist";
+import { useSubscriptions } from "@/hooks/useSubscriptions";
+import {
+  getSuggestedForYou,
+  getBecauseYouWatched,
+  getStreamingForYou,
+  getJustAdded,
+  getNewReleases,
+  getPopularMovies,
+  getTopRatedTV,
+  getHiddenGems,
+} from "@/constants/rails";
 import type { ContentItem } from "@/constants/types";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { toggleWatchlist, isInWatchlist } = useWatchlist();
+  const { watchlist, toggleWatchlist, isInWatchlist } = useWatchlist();
+  const { subscribedProviderIds } = useSubscriptions();
 
-  const trending = useQuery({
-    queryKey: ["trending"],
-    queryFn: fetchTrending,
-  });
+  const trending = useQuery({ queryKey: ["trending"], queryFn: fetchTrending });
+  const movies = useQuery({ queryKey: ["movies"], queryFn: fetchMovies });
+  const tvShows = useQuery({ queryKey: ["tv"], queryFn: fetchTV });
 
-  const movies = useQuery({
-    queryKey: ["movies"],
-    queryFn: fetchMovies,
-  });
-
-  const tvShows = useQuery({
-    queryKey: ["tv"],
-    queryFn: fetchTV,
-  });
-
-  useEffect(() => {
-    if (trending.data) storeItems(trending.data);
-  }, [trending.data]);
-
-  useEffect(() => {
-    if (movies.data) storeItems(movies.data);
-  }, [movies.data]);
-
-  useEffect(() => {
-    if (tvShows.data) storeItems(tvShows.data);
-  }, [tvShows.data]);
+  useEffect(() => { if (trending.data) storeItems(trending.data); }, [trending.data]);
+  useEffect(() => { if (movies.data) storeItems(movies.data); }, [movies.data]);
+  useEffect(() => { if (tvShows.data) storeItems(tvShows.data); }, [tvShows.data]);
 
   const handleCardPress = (item: ContentItem) => {
     router.push({ pathname: "/detail/[id]", params: { id: String(item.id) } });
@@ -57,6 +50,43 @@ export default function HomeScreen() {
 
   const isLoading = trending.isLoading && movies.isLoading && tvShows.isLoading;
   const isError = trending.isError && movies.isError && tvShows.isError;
+
+  // Combine and dedupe all content for rail filtering
+  const allContent = useMemo(() => {
+    const combined = [
+      ...(trending.data ?? []),
+      ...(movies.data ?? []),
+      ...(tvShows.data ?? []),
+    ];
+    const seen = new Set<number>();
+    return combined.filter((i) => {
+      if (seen.has(i.id)) return false;
+      seen.add(i.id);
+      return true;
+    });
+  }, [trending.data, movies.data, tvShows.data]);
+
+  // Compute all personalised rails
+  const suggestedForYou = useMemo(
+    () => getSuggestedForYou(allContent, watchlist),
+    [allContent, watchlist]
+  );
+
+  const becauseYouWatched = useMemo(
+    () => getBecauseYouWatched(allContent, watchlist),
+    [allContent, watchlist]
+  );
+
+  const streamingForYou = useMemo(
+    () => getStreamingForYou(allContent, subscribedProviderIds),
+    [allContent, subscribedProviderIds]
+  );
+
+  const justAdded = useMemo(() => getJustAdded(allContent), [allContent]);
+  const newReleases = useMemo(() => getNewReleases(allContent), [allContent]);
+  const popularMovies = useMemo(() => getPopularMovies(allContent), [allContent]);
+  const topRatedTV = useMemo(() => getTopRatedTV(allContent), [allContent]);
+  const hiddenGems = useMemo(() => getHiddenGems(allContent), [allContent]);
 
   if (isLoading) {
     return (
@@ -80,14 +110,7 @@ export default function HomeScreen() {
   const trendingData = trending.data ?? [];
   const moviesData = movies.data ?? [];
   const tvData = tvShows.data ?? [];
-
   const featured = trendingData[0];
-
-  const popular = [...trendingData, ...moviesData, ...tvData]
-    .filter((item, idx, arr) => arr.findIndex((i) => i.id === item.id) === idx)
-    .sort((a, b) => b.popularity - a.popularity)
-    .slice(0, 15);
-
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
   return (
@@ -108,6 +131,7 @@ export default function HomeScreen() {
         )}
 
         <View style={styles.rows}>
+          {/* 1. Trending Now */}
           {trendingData.length > 0 && (
             <ContentRow
               title="Trending Now"
@@ -117,6 +141,57 @@ export default function HomeScreen() {
             />
           )}
 
+          {/* 2. Suggested for You — watchlist-driven */}
+          {suggestedForYou.length > 0 && (
+            <ContentRow
+              title="Suggested for You"
+              items={suggestedForYou}
+              cardSize="md"
+              onCardPress={handleCardPress}
+            />
+          )}
+
+          {/* 3. Because You Watched X */}
+          {becauseYouWatched && (
+            <ContentRow
+              title={becauseYouWatched.label}
+              items={becauseYouWatched.results}
+              cardSize="md"
+              onCardPress={handleCardPress}
+            />
+          )}
+
+          {/* 4. Streaming for You — provider-filtered */}
+          {streamingForYou.length > 0 && (
+            <ContentRow
+              title="Streaming for You"
+              items={streamingForYou}
+              cardSize="md"
+              onCardPress={handleCardPress}
+            />
+          )}
+
+          {/* 5. Just Added */}
+          {justAdded.length > 0 && (
+            <ContentRow
+              title="Just Added"
+              items={justAdded}
+              cardSize="md"
+              onCardPress={handleCardPress}
+            />
+          )}
+
+          {/* 6. New Releases */}
+          {newReleases.length > 0 && (
+            <ContentRow
+              title="New Releases"
+              items={newReleases}
+              cardSize="md"
+              onCardPress={handleCardPress}
+            />
+          )}
+
+          {/* 7. Movies rail */}
           {moviesData.length > 0 && (
             <ContentRow
               title="Movies"
@@ -126,6 +201,7 @@ export default function HomeScreen() {
             />
           )}
 
+          {/* 8. TV Shows rail */}
           {tvData.length > 0 && (
             <ContentRow
               title="TV Shows"
@@ -135,10 +211,31 @@ export default function HomeScreen() {
             />
           )}
 
-          {popular.length > 0 && (
+          {/* 9. Popular Movies */}
+          {popularMovies.length > 0 && (
             <ContentRow
-              title="Popular Right Now"
-              items={popular}
+              title="Popular Movies"
+              items={popularMovies}
+              cardSize="md"
+              onCardPress={handleCardPress}
+            />
+          )}
+
+          {/* 10. Top Rated TV */}
+          {topRatedTV.length > 0 && (
+            <ContentRow
+              title="Top Rated TV"
+              items={topRatedTV}
+              cardSize="md"
+              onCardPress={handleCardPress}
+            />
+          )}
+
+          {/* 11. Hidden Gems */}
+          {hiddenGems.length > 0 && (
+            <ContentRow
+              title="Hidden Gems"
+              items={hiddenGems}
               cardSize="sm"
               onCardPress={handleCardPress}
             />
