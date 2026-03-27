@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useCallback, useRef } from "react";
+import React, { useEffect, useMemo, useCallback, useRef, useState } from "react";
 import {
   View,
   ScrollView,
@@ -7,15 +7,7 @@ import {
   Text,
   Platform,
   findNodeHandle,
-  AccessibilityInfo,
 } from "react-native";
-// useTVEventHandler is part of react-native-tvos; import defensively so
-// a web/simulator bundle doesn't crash.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { useTVEventHandler } = require("react-native") as {
-  useTVEventHandler?: (handler: (evt: { eventType: string }) => void) => void;
-};
-
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
@@ -46,6 +38,17 @@ type RowDef = {
   title: string;
   items: ContentItem[];
   cardSize: CardSize;
+};
+
+/**
+ * Per-row: arrays of nextFocusUp and nextFocusDown node handles.
+ * Index in the array == card index in the row.
+ * undefined means "let tvOS decide" (first/last rows naturally have
+ * no adjacent row in one direction).
+ */
+type RowHandles = {
+  up: (number | undefined)[];
+  down: (number | undefined)[];
 };
 
 export default function HomeScreen() {
@@ -82,102 +85,137 @@ export default function HomeScreen() {
     });
   }, [trending.data, movies.data, tvShows.data]);
 
-  const suggestedForYou  = useMemo(() => getSuggestedForYou(allContent, watchlist),              [allContent, watchlist]);
+  const suggestedForYou   = useMemo(() => getSuggestedForYou(allContent, watchlist),             [allContent, watchlist]);
   const becauseYouWatched = useMemo(() => getBecauseYouWatched(allContent, watchlist),           [allContent, watchlist]);
-  const streamingForYou  = useMemo(() => getStreamingForYou(allContent, subscribedProviderIds),  [allContent, subscribedProviderIds]);
-  const justAdded        = useMemo(() => getJustAdded(allContent),                               [allContent]);
-  const newReleases      = useMemo(() => getNewReleases(allContent),                             [allContent]);
-  const popularMovies    = useMemo(() => getPopularMovies(allContent),                           [allContent]);
-  const topRatedTV       = useMemo(() => getTopRatedTV(allContent),                              [allContent]);
-  const hiddenGems       = useMemo(() => getHiddenGems(allContent),                              [allContent]);
+  const streamingForYou   = useMemo(() => getStreamingForYou(allContent, subscribedProviderIds), [allContent, subscribedProviderIds]);
+  const justAdded         = useMemo(() => getJustAdded(allContent),                              [allContent]);
+  const newReleases       = useMemo(() => getNewReleases(allContent),                            [allContent]);
+  const popularMovies     = useMemo(() => getPopularMovies(allContent),                          [allContent]);
+  const topRatedTV        = useMemo(() => getTopRatedTV(allContent),                             [allContent]);
+  const hiddenGems        = useMemo(() => getHiddenGems(allContent),                             [allContent]);
 
   const trendingData = trending.data ?? [];
   const moviesData   = movies.data   ?? [];
   const tvData       = tvShows.data  ?? [];
 
-  // Ordered list of visible rails. Index = rowIndex used throughout.
+  // Ordered, stable list of visible rails once data is loaded.
   const rows = useMemo((): RowDef[] => {
     const r: RowDef[] = [];
-    if (trendingData.length > 0)     r.push({ key: "trending",   title: "Trending Now",          items: trendingData,                cardSize: "lg" });
-    if (suggestedForYou.length > 0)  r.push({ key: "suggested",  title: "Suggested for You",     items: suggestedForYou,             cardSize: "md" });
-    if (becauseYouWatched)           r.push({ key: "because",    title: becauseYouWatched.label,  items: becauseYouWatched.results,   cardSize: "md" });
-    if (streamingForYou.length > 0)  r.push({ key: "streaming",  title: "Streaming for You",     items: streamingForYou,             cardSize: "md" });
-    if (justAdded.length > 0)        r.push({ key: "justadded",  title: "Just Added",             items: justAdded,                   cardSize: "md" });
-    if (newReleases.length > 0)      r.push({ key: "newrel",     title: "New Releases",           items: newReleases,                 cardSize: "md" });
-    if (moviesData.length > 0)       r.push({ key: "movies",     title: "Movies",                 items: moviesData,                  cardSize: "md" });
-    if (tvData.length > 0)           r.push({ key: "tv",         title: "TV Shows",               items: tvData,                      cardSize: "md" });
-    if (popularMovies.length > 0)    r.push({ key: "popular",    title: "Popular Movies",         items: popularMovies,               cardSize: "md" });
-    if (topRatedTV.length > 0)       r.push({ key: "toprated",   title: "Top Rated TV",           items: topRatedTV,                  cardSize: "md" });
-    if (hiddenGems.length > 0)       r.push({ key: "hiddengems", title: "Hidden Gems",            items: hiddenGems,                  cardSize: "sm" });
+    if (trendingData.length > 0)    r.push({ key: "trending",   title: "Trending Now",         items: trendingData,              cardSize: "lg" });
+    if (suggestedForYou.length > 0) r.push({ key: "suggested",  title: "Suggested for You",    items: suggestedForYou,           cardSize: "md" });
+    if (becauseYouWatched)          r.push({ key: "because",    title: becauseYouWatched.label, items: becauseYouWatched.results, cardSize: "md" });
+    if (streamingForYou.length > 0) r.push({ key: "streaming",  title: "Streaming for You",    items: streamingForYou,           cardSize: "md" });
+    if (justAdded.length > 0)       r.push({ key: "justadded",  title: "Just Added",            items: justAdded,                 cardSize: "md" });
+    if (newReleases.length > 0)     r.push({ key: "newrel",     title: "New Releases",          items: newReleases,               cardSize: "md" });
+    if (moviesData.length > 0)      r.push({ key: "movies",     title: "Movies",                items: moviesData,                cardSize: "md" });
+    if (tvData.length > 0)          r.push({ key: "tv",         title: "TV Shows",              items: tvData,                    cardSize: "md" });
+    if (popularMovies.length > 0)   r.push({ key: "popular",    title: "Popular Movies",        items: popularMovies,             cardSize: "md" });
+    if (topRatedTV.length > 0)      r.push({ key: "toprated",   title: "Top Rated TV",          items: topRatedTV,                cardSize: "md" });
+    if (hiddenGems.length > 0)      r.push({ key: "hiddengems", title: "Hidden Gems",           items: hiddenGems,                cardSize: "sm" });
     return r;
   }, [trendingData, suggestedForYou, becauseYouWatched, streamingForYou, justAdded, newReleases, moviesData, tvData, popularMovies, topRatedTV, hiddenGems]);
 
   /**
-   * rowCardRefs[rowIndex] = array of refs for every card in that row.
-   * Populated by each ContentRow via onRefsReady after mount.
-   * Never passed to TVFocusGuideView.destinations — only read inside the
-   * event handler at interaction time (refs are non-null by then).
+   * rowCardRefs[rowIndex] = stable array of refs, one per card.
+   * Populated by ContentRow.onRefsReady after each row mounts.
+   * Keys are row indices matching the `rows` array.
    */
   const rowCardRefs = useRef<Map<number, React.RefObject<View>[]>>(new Map());
 
   /**
-   * Tracks which card currently has focus.
-   * rowIndex = -1 means focus is outside the rails (HeroBanner, tabs, etc.).
-   * Updated synchronously on every card onFocus event.
+   * Number of rows that have called onRefsReady.
+   * When this reaches rows.length we compute all nextFocusUp/Down handles.
    */
-  const currentFocus = useRef<{ rowIndex: number; itemIndex: number }>({
-    rowIndex: -1,
-    itemIndex: 0,
-  });
+  const [mountedRowCount, setMountedRowCount] = useState(0);
+
+  /**
+   * Computed nextFocusUp / nextFocusDown node-handle arrays, keyed by
+   * row index. Undefined entries = no override (let tvOS decide).
+   * Set after all rows mount; triggers one extra render to wire handles.
+   */
+  const [rowHandles, setRowHandles] = useState<Map<number, RowHandles>>(new Map());
+
+  // Reset when the rows list changes (e.g. more data arrived).
+  const prevRowsRef = useRef<RowDef[]>([]);
+  if (prevRowsRef.current !== rows) {
+    prevRowsRef.current = rows;
+    rowCardRefs.current.clear();
+    // Reset counters synchronously during render so the next effect
+    // re-triggers correctly.  Using a layout-safe pattern: we do NOT
+    // call setState here (would double-render); instead we rely on the
+    // useEffect below which re-runs whenever rows changes.
+  }
+
+  // Re-arm when rows changes.
+  useEffect(() => {
+    setMountedRowCount(0);
+    setRowHandles(new Map());
+  }, [rows]);
+
+  /**
+   * Once every row in the current `rows` list has mounted and given us
+   * its refs, compute the full nextFocusUp / nextFocusDown handle table.
+   *
+   * Navigation rule (hard-coded, no heuristics):
+   *   Up   → adjacent row above only (rowIndex - 1)
+   *   Down → adjacent row below only (rowIndex + 1)
+   *   target item = min(current item index, adjacent row card count - 1)
+   */
+  useEffect(() => {
+    if (rows.length === 0 || mountedRowCount < rows.length) return;
+
+    const handles = new Map<number, RowHandles>();
+
+    rows.forEach((row, ri) => {
+      const refs = rowCardRefs.current.get(ri);
+      if (!refs) return;
+
+      const up: (number | undefined)[]   = [];
+      const down: (number | undefined)[] = [];
+
+      refs.forEach((ref, ci) => {
+        // --- nextFocusUp: row above, clamped ---
+        if (ri > 0) {
+          const aboveRefs = rowCardRefs.current.get(ri - 1);
+          if (aboveRefs && aboveRefs.length > 0) {
+            const targetCi = Math.min(ci, aboveRefs.length - 1);
+            const handle = findNodeHandle(aboveRefs[targetCi].current);
+            up[ci] = handle ?? undefined;
+          } else {
+            up[ci] = undefined;
+          }
+        } else {
+          up[ci] = undefined; // first row — let Up go to HeroBanner naturally
+        }
+
+        // --- nextFocusDown: row below, clamped ---
+        if (ri < rows.length - 1) {
+          const belowRefs = rowCardRefs.current.get(ri + 1);
+          if (belowRefs && belowRefs.length > 0) {
+            const targetCi = Math.min(ci, belowRefs.length - 1);
+            const handle = findNodeHandle(belowRefs[targetCi].current);
+            down[ci] = handle ?? undefined;
+          } else {
+            down[ci] = undefined;
+          }
+        } else {
+          down[ci] = undefined; // last row — no row below
+        }
+      });
+
+      handles.set(ri, { up, down });
+    });
+
+    setRowHandles(handles);
+  }, [mountedRowCount, rows]);
 
   const handleRefsReady = useCallback(
     (rowIndex: number) => (refs: React.RefObject<View>[]) => {
       rowCardRefs.current.set(rowIndex, refs);
+      setMountedRowCount((c) => c + 1);
     },
     []
   );
-
-  const handleCardFocus = useCallback(
-    (rowIndex: number) => (itemIndex: number) => {
-      currentFocus.current = { rowIndex, itemIndex };
-    },
-    []
-  );
-
-  /**
-   * Adjacent-row focus handler.
-   *
-   * Rule (explicit, no heuristics):
-   *   Up   → targetRow = currentRow - 1  (adjacent only, never skip)
-   *   Down → targetRow = currentRow + 1  (adjacent only, never skip)
-   *   targetItem = min(currentItem, targetRow.cardCount - 1)
-   *
-   * AccessibilityInfo.setAccessibilityFocus() is the programmatic focus API
-   * on tvOS and does NOT render any visual guide overlay.
-   */
-  useTVEventHandler?.((event) => {
-    const { eventType } = event;
-    if (eventType !== "up" && eventType !== "down") return;
-
-    const { rowIndex, itemIndex } = currentFocus.current;
-    if (rowIndex < 0) return; // focus is outside the card rails
-
-    // Adjacent row only — never ±2 or more.
-    const targetRowIndex = rowIndex + (eventType === "up" ? -1 : 1);
-
-    const targetRefs = rowCardRefs.current.get(targetRowIndex);
-    if (!targetRefs || targetRefs.length === 0) return; // no adjacent row
-
-    // Clamp: if adjacent row is shorter, land on its last card.
-    const targetItemIndex = Math.min(itemIndex, targetRefs.length - 1);
-    const targetNode = targetRefs[targetItemIndex]?.current;
-    if (!targetNode) return;
-
-    const handle = findNodeHandle(targetNode);
-    if (handle != null) {
-      AccessibilityInfo.setAccessibilityFocus(handle);
-    }
-  });
 
   if (isLoading) {
     return (
@@ -219,17 +257,21 @@ export default function HomeScreen() {
         )}
 
         <View style={styles.rows}>
-          {rows.map((row, rowIndex) => (
-            <ContentRow
-              key={row.key}
-              title={row.title}
-              items={row.items}
-              cardSize={row.cardSize}
-              onCardPress={handleCardPress}
-              onRefsReady={handleRefsReady(rowIndex)}
-              onCardFocus={handleCardFocus(rowIndex)}
-            />
-          ))}
+          {rows.map((row, rowIndex) => {
+            const handles = rowHandles.get(rowIndex);
+            return (
+              <ContentRow
+                key={row.key}
+                title={row.title}
+                items={row.items}
+                cardSize={row.cardSize}
+                onCardPress={handleCardPress}
+                onRefsReady={handleRefsReady(rowIndex)}
+                cardUpHandles={handles?.up}
+                cardDownHandles={handles?.down}
+              />
+            );
+          })}
         </View>
       </ScrollView>
     </TVFocusGuideWrapper>
