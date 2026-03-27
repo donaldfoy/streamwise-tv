@@ -427,7 +427,7 @@ export default function DetailScreen() {
 
       {/* Gradients */}
       <LinearGradient
-        colors={["rgba(10,10,15,0.98)", "rgba(10,10,15,0.88)", "rgba(10,10,15,0.4)", "transparent"]}
+        colors={["rgba(10,10,15,0.99)", "rgba(10,10,15,0.97)", "rgba(10,10,15,0.85)", "rgba(10,10,15,0.3)", "transparent"]}
         style={styles.gradientLeft}
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
       />
@@ -763,8 +763,8 @@ const styles = StyleSheet.create({
   notFoundTitle: { fontFamily: "Inter_600SemiBold", fontSize: 28, color: Colors.text },
   notFoundBody: { fontFamily: "Inter_400Regular", fontSize: 18, color: Colors.textSecondary },
 
-  // Left gradient: only covers left ~55% so backdrop stays visible on the right
-  gradientLeft: { ...StyleSheet.absoluteFillObject, right: "38%" },
+  // Left gradient: covers ~80% width so text is always legible; backdrop shows on far right
+  gradientLeft: { ...StyleSheet.absoluteFillObject, right: "10%" },
   gradientTop: { position: "absolute", top: 0, left: 0, right: 0, height: 120 },
   gradientBottom: { position: "absolute", bottom: 0, left: 0, right: 0, height: 300 },
 
