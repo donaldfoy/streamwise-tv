@@ -45,6 +45,7 @@
     "plugins": [
       "@react-native-tvos/config-tv",
       "./plugins/withNilSafeNativeComponents",
+      "./plugins/withTvOSPodPatches",
       [
         "expo-router",
         {
