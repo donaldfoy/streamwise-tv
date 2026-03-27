@@ -1,6 +1,8 @@
 import type { ContentItem, SearchResponse } from "./types";
 
 const API_BASE = "https://streamwise.live/api";
+// Detail data comes from our local API server (has TMDB key + full append_to_response)
+const DETAIL_API_BASE = "http://localhost:8080/api";
 const IMG_BASE = "https://image.tmdb.org/t/p";
 
 export function posterUrl(path: string | null | undefined, size: "w300" | "w500" | "original" = "w500"): string {
@@ -55,4 +57,10 @@ export async function fetchSearch(query: string): Promise<ContentItem[]> {
   const data: SearchResponse | ContentItem[] = await res.json();
   if (Array.isArray(data)) return data;
   return (data as SearchResponse).results ?? [];
+}
+
+export async function fetchDetail(mediaType: "movie" | "tv", id: number | string): Promise<any> {
+  const res = await fetch(`${DETAIL_API_BASE}/${mediaType}/${id}`);
+  if (!res.ok) throw new Error(`Failed to fetch detail for ${mediaType}/${id}`);
+  return res.json();
 }
