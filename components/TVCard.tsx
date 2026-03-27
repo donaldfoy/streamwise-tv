@@ -33,6 +33,10 @@ type TVCardProps = {
   cardRef?: React.RefObject<View>;
   style?: ViewStyle;
   onFocusCallback?: () => void;
+  /** Node handle of the card to focus when user presses Up on this card. */
+  nextFocusUp?: number;
+  /** Node handle of the card to focus when user presses Down on this card. */
+  nextFocusDown?: number;
 };
 
 export function TVCard({
@@ -43,6 +47,8 @@ export function TVCard({
   cardRef,
   style,
   onFocusCallback,
+  nextFocusUp,
+  nextFocusDown,
 }: TVCardProps) {
   const [isFocused, setIsFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -120,6 +126,8 @@ export function TVCard({
         onPressOut={handlePressOut}
         onPress={() => onPress?.(item)}
         hasTVPreferredFocus={hasTVPreferredFocus}
+        nextFocusUp={nextFocusUp}
+        nextFocusDown={nextFocusDown}
         style={[
           styles.card,
           { width, height },
