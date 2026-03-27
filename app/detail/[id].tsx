@@ -9,12 +9,12 @@ import {
   Platform,
   Alert,
   Linking,
+  useWindowDimensions,
 } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "@/constants/colors";
 import {
   posterUrl,
@@ -29,97 +29,101 @@ import { useWatchlist } from "@/hooks/useWatchlist";
 import { TVFocusGuideWrapper } from "@/components/TVFocusGuideViewWrapper";
 import type { ContentItem, StreamingProvider } from "@/constants/types";
 
-// tvOS URL schemes for major streaming services (provider_id → scheme)
 const PROVIDER_SCHEMES: Record<number, string> = {
-  8:    "nflx://",          // Netflix
-  9:    "aiv://",           // Amazon Prime Video
-  15:   "hulu://",          // Hulu
-  337:  "disneyplus://",    // Disney+
-  384:  "hbomax://",        // HBO Max
-  1899: "max://",           // Max
-  386:  "peacocktv://",     // Peacock
-  531:  "paramountplus://", // Paramount+
-  2:    "videos://",        // Apple TV+ (TV app)
-  350:  "appletvplus://",   // Apple TV+
-  283:  "crunchyroll://",   // Crunchyroll
-  43:   "starz://",         // Starz
-  257:  "fubo://",          // Fubo
+  8:    "nflx://",
+  9:    "aiv://",
+  15:   "hulu://",
+  337:  "disneyplus://",
+  384:  "hbomax://",
+  1899: "max://",
+  386:  "peacocktv://",
+  531:  "paramountplus://",
+  2:    "videos://",
+  350:  "appletvplus://",
+  283:  "crunchyroll://",
+  43:   "starz://",
+  257:  "fubo://",
 };
+
+// ─── Action Button ────────────────────────────────────────────────────────────
 
 function ActionButton({
   icon,
   label,
-  variant = "primary",
+  variant = "secondary",
   onPress,
   hasTVPreferredFocus,
   active,
 }: {
   icon: keyof typeof Feather.glyphMap;
   label: string;
-  variant?: "primary" | "secondary" | "destructive";
+  variant?: "primary" | "secondary";
   onPress?: () => void;
   hasTVPreferredFocus?: boolean;
   active?: boolean;
 }) {
-  const [isFocused, setIsFocused] = useState(false);
+  const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
-  const handleFocus = useCallback(() => {
-    setIsFocused(true);
-    Animated.spring(scale, { toValue: 1.07, useNativeDriver: true, tension: 180 }).start();
+  const onFocus = useCallback(() => {
+    setFocused(true);
+    Animated.spring(scale, { toValue: 1.08, useNativeDriver: true, tension: 200 }).start();
   }, [scale]);
 
-  const handleBlur = useCallback(() => {
-    setIsFocused(false);
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 180 }).start();
+  const onBlur = useCallback(() => {
+    setFocused(false);
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 200 }).start();
   }, [scale]);
 
-  const bgColor =
-    variant === "primary"
-      ? Colors.tint
-      : variant === "destructive"
-      ? Colors.accentRed
-      : active
-      ? Colors.tint + "33"
-      : Colors.surface;
+  const isPrimary = variant === "primary";
 
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
-        onFocus={handleFocus}
-        onBlur={handleBlur}
+        onFocus={onFocus}
+        onBlur={onBlur}
         onPress={onPress}
         hasTVPreferredFocus={hasTVPreferredFocus}
         style={[
           styles.actionBtn,
-          { backgroundColor: bgColor },
-          isFocused && styles.actionBtnFocused,
+          isPrimary ? styles.actionBtnPrimary : styles.actionBtnSecondary,
+          active && styles.actionBtnActive,
+          focused && styles.actionBtnFocused,
         ]}
       >
-        <Feather name={icon} size={20} color={Colors.text} />
-        <Text style={styles.actionBtnLabel}>{label}</Text>
+        <Feather
+          name={icon}
+          size={22}
+          color={isPrimary ? "#fff" : Colors.text}
+        />
+        <Text style={[styles.actionBtnLabel, isPrimary && styles.actionBtnLabelPrimary]}>
+          {label}
+        </Text>
       </Pressable>
     </Animated.View>
   );
 }
 
+// ─── Provider Chip ─────────────────────────────────────────────────────────────
+
 function ProviderChip({ provider }: { provider: StreamingProvider }) {
-  const [isFocused, setIsFocused] = useState(false);
+  const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
 
   const shortName = provider.provider_name
     .replace(" Standard with Ads", "")
     .replace(" Amazon Channel", "")
-    .replace(" Apple TV+", "Apple TV+");
+    .replace(" Apple TV Channel", "")
+    .trim();
 
-  const handleFocus = useCallback(() => {
-    setIsFocused(true);
-    Animated.spring(scale, { toValue: 1.08, useNativeDriver: true, tension: 180 }).start();
+  const onFocus = useCallback(() => {
+    setFocused(true);
+    Animated.spring(scale, { toValue: 1.1, useNativeDriver: true, tension: 200 }).start();
   }, [scale]);
 
-  const handleBlur = useCallback(() => {
-    setIsFocused(false);
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 180 }).start();
+  const onBlur = useCallback(() => {
+    setFocused(false);
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 200 }).start();
   }, [scale]);
 
   const handlePress = useCallback(async () => {
@@ -128,9 +132,7 @@ function ProviderChip({ provider }: { provider: StreamingProvider }) {
       try {
         await Linking.openURL(scheme);
         return;
-      } catch {
-        // App not installed — fall through to alert
-      }
+      } catch {}
     }
     Alert.alert(
       provider.provider_name,
@@ -142,10 +144,10 @@ function ProviderChip({ provider }: { provider: StreamingProvider }) {
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
-        onFocus={handleFocus}
-        onBlur={handleBlur}
+        onFocus={onFocus}
+        onBlur={onBlur}
         onPress={handlePress}
-        style={[styles.providerChip, isFocused && styles.providerChipFocused]}
+        style={[styles.providerChip, focused && styles.providerChipFocused]}
       >
         <Image
           source={{ uri: providerLogoUrl(provider.logo_path) }}
@@ -160,43 +162,57 @@ function ProviderChip({ provider }: { provider: StreamingProvider }) {
   );
 }
 
+// ─── Stat Pill ────────────────────────────────────────────────────────────────
+
+function StatPill({ icon, value, color }: {
+  icon: keyof typeof Feather.glyphMap;
+  value: string;
+  color?: string;
+}) {
+  return (
+    <View style={styles.statPill}>
+      <Feather name={icon} size={15} color={color ?? Colors.textSecondary} />
+      <Text style={[styles.statPillText, color ? { color } : {}]}>{value}</Text>
+    </View>
+  );
+}
+
+// ─── Detail Screen ────────────────────────────────────────────────────────────
+
 export default function DetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const insets = useSafeAreaInsets();
   const { toggleWatchlist, isInWatchlist } = useWatchlist();
-  const topPad = Platform.OS === "web" ? 67 : insets.top;
-  const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+  const { width, height } = useWindowDimensions();
 
   const item = getItem(id ?? "");
   const inList = item ? isInWatchlist(item.id) : false;
 
   if (!item) {
     return (
-      <View style={[styles.root, styles.centered, { paddingTop: topPad }]}>
-        <View style={styles.errorIcon}>
-          <Feather name="alert-circle" size={48} color={Colors.textSecondary} />
-        </View>
-        <Text style={styles.errorTitle}>Content Not Found</Text>
-        <Text style={styles.errorBody}>Navigate back and try again.</Text>
-        <ActionButton
-          icon="arrow-left"
-          label="Go Back"
-          variant="secondary"
-          onPress={() => router.back()}
-          hasTVPreferredFocus
-        />
+      <View style={styles.notFound}>
+        <Feather name="alert-circle" size={56} color={Colors.textSecondary} />
+        <Text style={styles.notFoundTitle}>Content Not Found</Text>
+        <Text style={styles.notFoundBody}>Press Menu to go back.</Text>
       </View>
     );
   }
 
-  const genres = genreNames(item.genre_ids ?? [], 4);
+  const genres = genreNames(item.genre_ids ?? [], 3);
   const flatrate = item.streaming?.providers?.flatrate ?? [];
   const rent = item.streaming?.providers?.rent ?? [];
   const buy = item.streaming?.providers?.buy ?? [];
 
-  const allProviders = [...flatrate, ...rent, ...buy].filter(
+  const flatrateUnique = flatrate.filter(
     (p, i, arr) => arr.findIndex((x) => x.provider_id === p.provider_id) === i
   );
+  const rentUnique = rent.filter(
+    (p, i, arr) => arr.findIndex((x) => x.provider_id === p.provider_id) === i
+  );
+  const buyUnique = buy.filter(
+    (p, i, arr) => arr.findIndex((x) => x.provider_id === p.provider_id) === i
+  );
+
+  const allProviders = [...flatrateUnique, ...rentUnique, ...buyUnique];
 
   const streamLabel = [
     flatrate.length && "Stream",
@@ -206,550 +222,462 @@ export default function DetailScreen() {
     .filter(Boolean)
     .join(" · ");
 
+  const popularityDisplay =
+    item.popularity > 1000
+      ? `${(item.popularity / 1000).toFixed(1)}k`
+      : item.popularity.toFixed(0);
+
   return (
-    <View style={[styles.root, { paddingTop: topPad }]}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={{ paddingBottom: bottomPad + 80 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Hero backdrop */}
-        <View style={styles.hero}>
+    <View style={styles.root}>
+      {/* Full-bleed backdrop */}
+      <Image
+        source={{ uri: backdropUrl(item.backdrop_path, "original") }}
+        style={[StyleSheet.absoluteFill, { width, height }]}
+        contentFit="cover"
+        transition={600}
+      />
+
+      {/* Gradient overlays */}
+      <LinearGradient
+        colors={["rgba(10,10,15,0.98)", "rgba(10,10,15,0.85)", "rgba(10,10,15,0.3)", "transparent"]}
+        style={styles.gradientLeft}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+      />
+      <LinearGradient
+        colors={["rgba(10,10,15,0.7)", "rgba(10,10,15,0.2)", "transparent"]}
+        style={styles.gradientTop}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+      <LinearGradient
+        colors={["transparent", "rgba(10,10,15,0.9)"]}
+        style={styles.gradientBottom}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0, y: 1 }}
+      />
+
+      {/* Content panel — left side */}
+      <View style={styles.contentPanel}>
+
+        {/* Top: poster + info row */}
+        <View style={styles.topRow}>
+          {/* Poster */}
           <Image
-            source={{ uri: backdropUrl(item.backdrop_path, "original") }}
-            style={StyleSheet.absoluteFill}
+            source={{ uri: posterUrl(item.poster_path, "w500") }}
+            style={styles.poster}
             contentFit="cover"
-            transition={500}
-          />
-          <LinearGradient
-            colors={["rgba(10,10,15,0.3)", "rgba(10,10,15,0.6)", Colors.background]}
-            style={styles.heroFadeBottom}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-          />
-          <LinearGradient
-            colors={[Colors.background, "transparent"]}
-            style={styles.heroFadeSide}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
+            borderRadius={10}
+            transition={400}
           />
 
-          {/* Back button */}
-          <Pressable style={styles.backBtn} onPress={() => router.back()}>
-            <Feather name="arrow-left" size={20} color={Colors.text} />
-          </Pressable>
-        </View>
-
-        {/* Body */}
-        <View style={styles.body}>
-          {/* Main layout: poster + info side by side */}
-          <View style={styles.mainRow}>
-            {/* Poster */}
-            <View style={styles.posterWrapper}>
-              <Image
-                source={{ uri: posterUrl(item.poster_path, "w500") }}
-                style={styles.posterImage}
-                contentFit="cover"
-                borderRadius={14}
-                transition={400}
-              />
-              {/* Streaming availability indicator */}
-              {flatrate.length > 0 && (
-                <View style={styles.availableBadge}>
-                  <View style={[styles.availableDot, { backgroundColor: Colors.accentGreen }]} />
-                  <Text style={styles.availableText}>Available to Stream</Text>
-                </View>
-              )}
-            </View>
-
-            {/* Info column */}
-            <View style={styles.infoCol}>
-              {/* Type badge */}
+          {/* Info column */}
+          <View style={styles.infoCol}>
+            {/* Badge row */}
+            <View style={styles.badgeRow}>
               <View style={styles.typeBadge}>
                 <Text style={styles.typeBadgeText}>
                   {item.media_type === "tv" ? "TV SERIES" : "FILM"}
                 </Text>
               </View>
-
-              <Text style={styles.title}>{item.title}</Text>
-
-              {/* Meta */}
-              <View style={styles.metaRow}>
-                <View style={styles.scoreBadge}>
-                  <Feather name="star" size={14} color={Colors.accent} />
-                  <Text style={styles.scoreText}>{formatVoteAverage(item.vote_average)}</Text>
-                </View>
-                <View style={styles.divider} />
-                <Text style={styles.metaText}>{releaseYear(item.release_date)}</Text>
-                {streamLabel ? (
-                  <>
-                    <View style={styles.divider} />
-                    <Text style={[styles.metaText, { color: Colors.accentGreen }]}>
-                      {streamLabel}
-                    </Text>
-                  </>
-                ) : null}
-              </View>
-
-              {/* Genres */}
-              {genres.length > 0 && (
-                <View style={styles.genreRow}>
-                  {genres.map((g) => (
-                    <View key={g} style={styles.genreTag}>
-                      <Text style={styles.genreText}>{g}</Text>
-                    </View>
-                  ))}
+              {flatrate.length > 0 && (
+                <View style={styles.streamBadge}>
+                  <View style={styles.streamDot} />
+                  <Text style={styles.streamBadgeText}>Available to Stream</Text>
                 </View>
               )}
-
-              <Text style={styles.overview}>{item.overview}</Text>
-
-              {/* Action buttons */}
-              <TVFocusGuideWrapper style={styles.actions}>
-                <ActionButton
-                  icon="play"
-                  label="Play Now"
-                  variant="primary"
-                  onPress={() =>
-                    Alert.alert(
-                      "Starting Playback",
-                      `Now playing: ${item.title}`,
-                      [{ text: "OK" }]
-                    )
-                  }
-                  hasTVPreferredFocus
-                />
-                <ActionButton
-                  icon={inList ? "bookmark" : "bookmark"}
-                  label={inList ? "Remove from List" : "Add to List"}
-                  variant="secondary"
-                  active={inList}
-                  onPress={() => toggleWatchlist(item)}
-                />
-                <ActionButton
-                  icon="share-2"
-                  label="Share"
-                  variant="secondary"
-                  onPress={() => {}}
-                />
-              </TVFocusGuideWrapper>
             </View>
-          </View>
 
-          {/* Where to Watch */}
-          {allProviders.length > 0 && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionLabel}>WHERE TO WATCH</Text>
-                <View style={styles.sectionLine} />
-              </View>
+            {/* Title */}
+            <Text style={styles.title} numberOfLines={2}>
+              {item.title}
+            </Text>
 
-              <View style={styles.providerGroups}>
-                {flatrate.length > 0 && (
-                  <View style={styles.providerGroup}>
-                    <Text style={styles.providerGroupLabel}>
-                      <Feather name="play-circle" size={11} color={Colors.accentGreen} />
-                      {"  "}Included with Subscription
-                    </Text>
-                    <View style={styles.providerList}>
-                      {flatrate
-                        .filter((p, i, arr) => arr.findIndex((x) => x.provider_id === p.provider_id) === i)
-                        .slice(0, 4)
-                        .map((p) => (
-                          <ProviderChip key={p.provider_id} provider={p} />
-                        ))}
-                    </View>
+            {/* Stats row */}
+            <View style={styles.statsRow}>
+              <StatPill icon="star" value={formatVoteAverage(item.vote_average)} color={Colors.accent} />
+              <View style={styles.statDivider} />
+              <StatPill icon="calendar" value={releaseYear(item.release_date)} />
+              <View style={styles.statDivider} />
+              <StatPill icon="trending-up" value={popularityDisplay} color={Colors.tint} />
+              {streamLabel ? (
+                <>
+                  <View style={styles.statDivider} />
+                  <StatPill icon="play-circle" value={streamLabel} color={Colors.accentGreen} />
+                </>
+              ) : null}
+            </View>
+
+            {/* Genres */}
+            {genres.length > 0 && (
+              <View style={styles.genreRow}>
+                {genres.map((g) => (
+                  <View key={g} style={styles.genreTag}>
+                    <Text style={styles.genreText}>{g}</Text>
                   </View>
-                )}
+                ))}
+              </View>
+            )}
 
-                {rent.length > 0 && (
-                  <View style={styles.providerGroup}>
-                    <Text style={styles.providerGroupLabel}>
-                      <Feather name="dollar-sign" size={11} color={Colors.accent} />
-                      {"  "}Available to Rent
-                    </Text>
-                    <View style={styles.providerList}>
-                      {rent
-                        .filter((p, i, arr) => arr.findIndex((x) => x.provider_id === p.provider_id) === i)
-                        .slice(0, 4)
-                        .map((p) => (
-                          <ProviderChip key={p.provider_id} provider={p} />
-                        ))}
-                    </View>
-                  </View>
-                )}
-
-                {buy.length > 0 && (
-                  <View style={styles.providerGroup}>
-                    <Text style={styles.providerGroupLabel}>
-                      <Feather name="shopping-bag" size={11} color={Colors.textSecondary} />
-                      {"  "}Buy to Own
-                    </Text>
-                    <View style={styles.providerList}>
-                      {buy
-                        .filter((p, i, arr) => arr.findIndex((x) => x.provider_id === p.provider_id) === i)
-                        .slice(0, 4)
-                        .map((p) => (
-                          <ProviderChip key={p.provider_id} provider={p} />
-                        ))}
-                    </View>
-                  </View>
-                )}
-              </View>
-            </View>
-          )}
-
-          {/* Popularity & Stats */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionLabel}>DETAILS</Text>
-              <View style={styles.sectionLine} />
-            </View>
-            <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
-                <Feather name="star" size={20} color={Colors.accent} />
-                <Text style={styles.statValue}>{formatVoteAverage(item.vote_average)}</Text>
-                <Text style={styles.statLabel}>User Score</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Feather name="trending-up" size={20} color={Colors.tint} />
-                <Text style={styles.statValue}>
-                  {item.popularity > 1000
-                    ? `${(item.popularity / 1000).toFixed(1)}k`
-                    : item.popularity.toFixed(0)}
-                </Text>
-                <Text style={styles.statLabel}>Popularity</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Feather name="calendar" size={20} color={Colors.textSecondary} />
-                <Text style={styles.statValue}>{releaseYear(item.release_date)}</Text>
-                <Text style={styles.statLabel}>Release Year</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Feather
-                  name={item.media_type === "tv" ? "tv" : "film"}
-                  size={20}
-                  color={Colors.textSecondary}
-                />
-                <Text style={styles.statValue}>
-                  {item.media_type === "tv" ? "Series" : "Film"}
-                </Text>
-                <Text style={styles.statLabel}>Format</Text>
-              </View>
-            </View>
+            {/* Overview */}
+            <Text style={styles.overview} numberOfLines={4}>
+              {item.overview}
+            </Text>
           </View>
         </View>
-      </ScrollView>
+
+        {/* Action buttons */}
+        <TVFocusGuideWrapper style={styles.actionsRow}>
+          <ActionButton
+            icon="play"
+            label="Play Now"
+            variant="primary"
+            hasTVPreferredFocus
+            onPress={() =>
+              Alert.alert("Starting Playback", `Now playing: ${item.title}`, [{ text: "OK" }])
+            }
+          />
+          <ActionButton
+            icon={inList ? "bookmark" : "bookmark"}
+            label={inList ? "Remove from List" : "+ My List"}
+            variant="secondary"
+            active={inList}
+            onPress={() => toggleWatchlist(item)}
+          />
+          <ActionButton
+            icon="share-2"
+            label="Share"
+            variant="secondary"
+            onPress={() => {}}
+          />
+        </TVFocusGuideWrapper>
+
+        {/* Where to Watch */}
+        {allProviders.length > 0 && (
+          <View style={styles.whereToWatch}>
+            <Text style={styles.whereToWatchLabel}>WHERE TO WATCH</Text>
+
+            {flatrateUnique.length > 0 && (
+              <View style={styles.providerSection}>
+                <Text style={styles.providerSectionLabel}>
+                  <Feather name="play-circle" size={12} color={Colors.accentGreen} />
+                  {"  "}Included with subscription
+                </Text>
+                <TVFocusGuideWrapper style={styles.providerRow}>
+                  {flatrateUnique.slice(0, 5).map((p) => (
+                    <ProviderChip key={p.provider_id} provider={p} />
+                  ))}
+                </TVFocusGuideWrapper>
+              </View>
+            )}
+
+            {rentUnique.length > 0 && (
+              <View style={styles.providerSection}>
+                <Text style={styles.providerSectionLabel}>
+                  <Feather name="dollar-sign" size={12} color={Colors.accent} />
+                  {"  "}Rent
+                </Text>
+                <TVFocusGuideWrapper style={styles.providerRow}>
+                  {rentUnique.slice(0, 5).map((p) => (
+                    <ProviderChip key={p.provider_id} provider={p} />
+                  ))}
+                </TVFocusGuideWrapper>
+              </View>
+            )}
+
+            {buyUnique.length > 0 && flatrateUnique.length === 0 && rentUnique.length === 0 && (
+              <View style={styles.providerSection}>
+                <Text style={styles.providerSectionLabel}>
+                  <Feather name="shopping-bag" size={12} color={Colors.textSecondary} />
+                  {"  "}Buy
+                </Text>
+                <TVFocusGuideWrapper style={styles.providerRow}>
+                  {buyUnique.slice(0, 5).map((p) => (
+                    <ProviderChip key={p.provider_id} provider={p} />
+                  ))}
+                </TVFocusGuideWrapper>
+              </View>
+            )}
+          </View>
+        )}
+      </View>
     </View>
   );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: Colors.background,
   },
-  centered: {
+  notFound: {
+    flex: 1,
+    backgroundColor: Colors.background,
     alignItems: "center",
     justifyContent: "center",
     gap: 16,
-    padding: 48,
   },
-  errorIcon: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: Colors.surfaceElevated,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  errorTitle: {
+  notFoundTitle: {
     fontFamily: "Inter_600SemiBold",
-    fontSize: 24,
+    fontSize: 28,
     color: Colors.text,
   },
-  errorBody: {
+  notFoundBody: {
     fontFamily: "Inter_400Regular",
-    fontSize: 15,
+    fontSize: 18,
     color: Colors.textSecondary,
   },
-  scroll: { flex: 1 },
-  hero: {
-    height: 420,
-    width: "100%",
-    position: "relative",
+
+  // Gradients
+  gradientLeft: {
+    ...StyleSheet.absoluteFillObject,
+    right: "30%",
   },
-  heroFadeBottom: {
+  gradientTop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 180,
+  },
+  gradientBottom: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    height: "85%",
+    height: 200,
   },
-  heroFadeSide: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: 0,
-    width: "38%",
-  },
-  backBtn: {
-    position: "absolute",
-    top: 20,
-    left: 52,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "rgba(20,20,32,0.8)",
-    alignItems: "center",
+
+  // Content panel
+  contentPanel: {
+    flex: 1,
+    paddingHorizontal: 64,
+    paddingTop: 52,
+    paddingBottom: 48,
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: Colors.border,
+    gap: 28,
+    maxWidth: "65%",
   },
-  body: {
-    paddingHorizontal: 52,
-    marginTop: -140,
-    gap: 48,
-  },
-  mainRow: {
+
+  // Top row: poster + info
+  topRow: {
     flexDirection: "row",
-    gap: 44,
+    gap: 36,
     alignItems: "flex-start",
   },
-  posterWrapper: {
+  poster: {
+    width: 180,
+    height: 268,
     flexShrink: 0,
-    gap: 12,
-  },
-  posterImage: {
-    width: 240,
-    height: 360,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.6,
-    shadowRadius: 32,
-    elevation: 20,
-  },
-  availableBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    backgroundColor: Colors.surfaceElevated,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: Colors.accentGreen + "40",
-  },
-  availableDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-  },
-  availableText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 12,
-    color: Colors.accentGreen,
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.7,
+    shadowRadius: 30,
   },
   infoCol: {
     flex: 1,
-    gap: 16,
-    paddingTop: 96,
+    gap: 14,
+    paddingTop: 8,
+  },
+
+  // Badges
+  badgeRow: {
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "center",
+    flexWrap: "wrap",
   },
   typeBadge: {
-    alignSelf: "flex-start",
     backgroundColor: Colors.tint,
     borderRadius: 6,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
   },
   typeBadgeText: {
     fontFamily: "Inter_700Bold",
-    fontSize: 10,
-    letterSpacing: 1.2,
-    color: Colors.text,
+    fontSize: 11,
+    letterSpacing: 1.4,
+    color: "#fff",
   },
-  title: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 42,
-    lineHeight: 50,
-    letterSpacing: -0.8,
-    color: Colors.text,
-  },
-  metaRow: {
+  streamBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    flexWrap: "wrap",
-  },
-  scoreBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: Colors.surfaceElevated,
-    borderRadius: 7,
+    gap: 6,
+    backgroundColor: Colors.accentGreen + "20",
+    borderRadius: 6,
     paddingHorizontal: 10,
     paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: Colors.accentGreen + "50",
   },
-  scoreText: {
+  streamDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: Colors.accentGreen,
+  },
+  streamBadgeText: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 11,
+    color: Colors.accentGreen,
+  },
+
+  // Title
+  title: {
     fontFamily: "Inter_700Bold",
-    fontSize: 15,
-    color: Colors.accent,
+    fontSize: 46,
+    lineHeight: 54,
+    letterSpacing: -1,
+    color: Colors.text,
   },
-  divider: {
-    width: 1,
-    height: 18,
-    backgroundColor: Colors.border,
+
+  // Stats
+  statsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flexWrap: "wrap",
   },
-  metaText: {
-    fontFamily: "Inter_500Medium",
+  statPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  statPillText: {
+    fontFamily: "Inter_600SemiBold",
     fontSize: 15,
     color: Colors.textSecondary,
   },
+  statDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: Colors.border,
+  },
+
+  // Genres
   genreRow: {
     flexDirection: "row",
     gap: 8,
     flexWrap: "wrap",
   },
   genreTag: {
-    backgroundColor: Colors.surfaceElevated,
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 6,
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderWidth: 1,
-    borderColor: Colors.tint + "30",
+    borderColor: "rgba(255,255,255,0.15)",
   },
   genreText: {
     fontFamily: "Inter_500Medium",
     fontSize: 13,
     color: Colors.textSecondary,
   },
+
+  // Overview
   overview: {
     fontFamily: "Inter_400Regular",
     fontSize: 16,
     lineHeight: 26,
     color: Colors.textSecondary,
-    maxWidth: 680,
   },
-  actions: {
+
+  // Action buttons
+  actionsRow: {
     flexDirection: "row",
     gap: 14,
-    flexWrap: "wrap",
-    marginTop: 4,
   },
   actionBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingHorizontal: 26,
-    paddingVertical: 15,
+    paddingHorizontal: 28,
+    paddingVertical: 16,
     borderRadius: 10,
     borderWidth: 2,
     borderColor: "transparent",
+    minWidth: 160,
+    justifyContent: "center",
+  },
+  actionBtnPrimary: {
+    backgroundColor: Colors.tint,
+  },
+  actionBtnSecondary: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  actionBtnActive: {
+    backgroundColor: Colors.tint + "30",
+    borderColor: Colors.tint + "60",
   },
   actionBtnFocused: {
     borderColor: Colors.focusRing,
     shadowColor: Colors.focusRing,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
   },
   actionBtnLabel: {
     fontFamily: "Inter_600SemiBold",
-    fontSize: 16,
+    fontSize: 17,
     color: Colors.text,
   },
-  section: {
-    gap: 20,
+  actionBtnLabelPrimary: {
+    color: "#fff",
   },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
+
+  // Where to watch
+  whereToWatch: {
     gap: 14,
   },
-  sectionLabel: {
+  whereToWatchLabel: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 11,
     letterSpacing: 2,
     color: Colors.textSecondary,
-    flexShrink: 0,
   },
-  sectionLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.border,
+  providerSection: {
+    gap: 10,
   },
-  providerGroups: {
-    gap: 20,
-  },
-  providerGroup: {
-    gap: 12,
-  },
-  providerGroupLabel: {
+  providerSectionLabel: {
     fontFamily: "Inter_500Medium",
     fontSize: 13,
     color: Colors.textSecondary,
   },
-  providerList: {
+  providerRow: {
     flexDirection: "row",
     gap: 10,
-    flexWrap: "wrap",
   },
   providerChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    backgroundColor: Colors.surface,
+    gap: 9,
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 2,
-    borderColor: Colors.border,
+    borderColor: "rgba(255,255,255,0.15)",
   },
   providerChipFocused: {
     borderColor: Colors.focusRing,
-    backgroundColor: Colors.surfaceElevated,
+    backgroundColor: "rgba(99,102,241,0.2)",
     shadowColor: Colors.focusRing,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
   },
   providerLogo: {
-    width: 30,
-    height: 30,
+    width: 32,
+    height: 32,
     borderRadius: 7,
   },
   providerName: {
     fontFamily: "Inter_600SemiBold",
     fontSize: 14,
     color: Colors.text,
-    maxWidth: 140,
-  },
-  statsGrid: {
-    flexDirection: "row",
-    gap: 14,
-    flexWrap: "wrap",
-  },
-  statCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    gap: 6,
-    alignItems: "center",
-    minWidth: 120,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  statValue: {
-    fontFamily: "Inter_700Bold",
-    fontSize: 18,
-    color: Colors.text,
-  },
-  statLabel: {
-    fontFamily: "Inter_400Regular",
-    fontSize: 11,
-    color: Colors.textSecondary,
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
+    maxWidth: 130,
   },
 });
