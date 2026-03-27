@@ -345,11 +345,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     inset: -10,
     borderRadius: 18,
-    shadowColor: Colors.focusRing,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.7,
-    shadowRadius: 20,
-    elevation: 15,
+    backgroundColor: "rgba(99,102,241,0.22)",
   },
   card: {
     width: "100%",
