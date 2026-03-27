@@ -40,6 +40,20 @@ const PATCH_LINES = `
       File.write(__ns_file, __ns_patched)
       puts "${MARKER} Patched #{File.basename(__ns_file)} — nil classes will be skipped safely"
     end
+  end
+
+  # ${MARKER} ExpoGlassEffect tvOS exclusion
+  # GlassContainer.swift and GlassView.swift override Fabric methods
+  # (mountChildComponentView / unmountChildComponentView) that don't exist
+  # in the ExpoView superclass on tvOS. Exclude all Swift source from the
+  # ExpoGlassEffect pod when building for Apple TV SDKs.
+  installer.pods_project.targets.each do |__eg_target|
+    next unless __eg_target.name == 'ExpoGlassEffect'
+    __eg_target.build_configurations.each do |__eg_config|
+      __eg_config.build_settings['EXCLUDED_SOURCE_FILE_NAMES[sdk=appletvos*]']        = '*.swift'
+      __eg_config.build_settings['EXCLUDED_SOURCE_FILE_NAMES[sdk=appletvsimulator*]'] = '*.swift'
+    end
+    puts "${MARKER} Excluded ExpoGlassEffect Swift files from tvOS/tvSimulator builds"
   end`;
 
 /**
