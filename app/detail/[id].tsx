@@ -7,6 +7,7 @@ import {
   Pressable,
   Animated,
   Platform,
+  Alert,
 } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -85,22 +86,50 @@ function ActionButton({
 }
 
 function ProviderChip({ provider }: { provider: StreamingProvider }) {
+  const [isFocused, setIsFocused] = useState(false);
+  const scale = useRef(new Animated.Value(1)).current;
+
   const shortName = provider.provider_name
     .replace(" Standard with Ads", "")
     .replace(" Amazon Channel", "")
     .replace(" Apple TV+", "Apple TV+");
 
+  const handleFocus = useCallback(() => {
+    setIsFocused(true);
+    Animated.spring(scale, { toValue: 1.08, useNativeDriver: true, tension: 180 }).start();
+  }, [scale]);
+
+  const handleBlur = useCallback(() => {
+    setIsFocused(false);
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 180 }).start();
+  }, [scale]);
+
+  const handlePress = useCallback(() => {
+    Alert.alert(
+      provider.provider_name,
+      "Open this app on your Apple TV to start watching.",
+      [{ text: "OK", style: "default" }]
+    );
+  }, [provider.provider_name]);
+
   return (
-    <View style={styles.providerChip}>
-      <Image
-        source={{ uri: providerLogoUrl(provider.logo_path) }}
-        style={styles.providerLogo}
-        contentFit="cover"
-      />
-      <Text style={styles.providerName} numberOfLines={1}>
-        {shortName}
-      </Text>
-    </View>
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        onPress={handlePress}
+        style={[styles.providerChip, isFocused && styles.providerChipFocused]}
+      >
+        <Image
+          source={{ uri: providerLogoUrl(provider.logo_path) }}
+          style={styles.providerLogo}
+          contentFit="cover"
+        />
+        <Text style={styles.providerName} numberOfLines={1}>
+          {shortName}
+        </Text>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -254,7 +283,13 @@ export default function DetailScreen() {
                   icon="play"
                   label="Play Now"
                   variant="primary"
-                  onPress={() => {}}
+                  onPress={() =>
+                    Alert.alert(
+                      "Starting Playback",
+                      `Now playing: ${item.title}`,
+                      [{ text: "OK" }]
+                    )
+                  }
                   hasTVPreferredFocus
                 />
                 <ActionButton
@@ -640,8 +675,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: Colors.border,
+  },
+  providerChipFocused: {
+    borderColor: Colors.focusRing,
+    backgroundColor: Colors.surfaceElevated,
+    shadowColor: Colors.focusRing,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
   },
   providerLogo: {
     width: 30,
