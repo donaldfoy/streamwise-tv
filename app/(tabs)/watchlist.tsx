@@ -2,14 +2,14 @@ import React, { useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
-  FlatList,
+  SectionList,
   StyleSheet,
   Pressable,
   Animated,
   Platform,
+  Alert,
 } from "react-native";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,9 +20,39 @@ import { useWatchlist } from "@/hooks/useWatchlist";
 import { TVFocusGuideWrapper } from "@/components/TVFocusGuideViewWrapper";
 import type { ContentItem } from "@/constants/types";
 
-const NUM_COLS = 4;
+// ─── Remove Button ────────────────────────────────────────────────────────────
 
-function WatchlistCard({
+function RemoveButton({ onPress }: { onPress: () => void }) {
+  const [focused, setFocused] = useState(false);
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const onFocus = useCallback(() => {
+    setFocused(true);
+    Animated.spring(scale, { toValue: 1.1, useNativeDriver: true, tension: 200 }).start();
+  }, [scale]);
+
+  const onBlur = useCallback(() => {
+    setFocused(false);
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 200 }).start();
+  }, [scale]);
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        onFocus={onFocus}
+        onBlur={onBlur}
+        onPress={onPress}
+        style={[styles.removeBtn, focused && styles.removeBtnFocused]}
+      >
+        <Feather name="trash-2" size={20} color={focused ? "#fff" : Colors.accentRed} />
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// ─── Watchlist Row Item ───────────────────────────────────────────────────────
+
+function WatchlistItem({
   item,
   onPress,
   onRemove,
@@ -33,103 +63,157 @@ function WatchlistCard({
   onRemove: (id: number) => void;
   hasTVPreferredFocus?: boolean;
 }) {
-  const [isFocused, setIsFocused] = useState(false);
+  const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
-  const glowOpacity = useRef(new Animated.Value(0)).current;
+  const bgOpacity = useRef(new Animated.Value(0)).current;
 
-  const handleFocus = useCallback(() => {
-    setIsFocused(true);
+  const onFocus = useCallback(() => {
+    setFocused(true);
     Animated.parallel([
-      Animated.spring(scale, { toValue: 1.08, useNativeDriver: true, tension: 160, friction: 12 }),
-      Animated.timing(glowOpacity, { toValue: 1, duration: 120, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1.02, useNativeDriver: true, tension: 200 }),
+      Animated.timing(bgOpacity, { toValue: 1, duration: 120, useNativeDriver: true }),
     ]).start();
-  }, [scale, glowOpacity]);
+  }, [scale, bgOpacity]);
 
-  const handleBlur = useCallback(() => {
-    setIsFocused(false);
+  const onBlur = useCallback(() => {
+    setFocused(false);
     Animated.parallel([
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 160, friction: 12 }),
-      Animated.timing(glowOpacity, { toValue: 0, duration: 150, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 200 }),
+      Animated.timing(bgOpacity, { toValue: 0, duration: 150, useNativeDriver: true }),
     ]).start();
-  }, [scale, glowOpacity]);
+  }, [scale, bgOpacity]);
 
-  const genres = genreNames(item.genre_ids ?? [], 2);
-  const streamCount = [
-    ...(item.streaming?.providers?.flatrate ?? []),
-    ...(item.streaming?.providers?.rent ?? []),
-    ...(item.streaming?.providers?.buy ?? []),
-  ].filter((p, i, arr) => arr.findIndex((x) => x.provider_id === p.provider_id) === i).length;
+  const handleRemove = useCallback(() => {
+    Alert.alert(
+      "Remove from Watchlist",
+      `Remove "${item.title}" from your list?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Remove", style: "destructive", onPress: () => onRemove(item.id) },
+      ]
+    );
+  }, [item.id, item.title, onRemove]);
+
+  const genres = genreNames(item.genre_ids ?? [], 3);
+  const flatrateCount = item.streaming?.providers?.flatrate?.length ?? 0;
+  const isStreaming = flatrateCount > 0;
 
   return (
-    <Animated.View style={[styles.cardOuter, { transform: [{ scale }] }]}>
-      <Animated.View style={[styles.cardGlow, { opacity: glowOpacity }]} />
-      <Pressable
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        onPress={() => onPress(item)}
-        hasTVPreferredFocus={hasTVPreferredFocus}
-        style={[styles.card, isFocused && styles.cardFocused]}
+    <TVFocusGuideWrapper style={styles.rowWrapper}>
+      <Animated.View
+        style={[
+          styles.rowContainer,
+          { transform: [{ scale }] },
+        ]}
       >
-        <View style={styles.posterArea}>
-          <Image
-            source={{ uri: posterUrl(item.poster_path) }}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            transition={300}
-          />
-          <LinearGradient
-            colors={["transparent", "rgba(10,10,15,0.96)"]}
-            style={styles.cardGradient}
-            start={{ x: 0, y: 0.45 }}
-            end={{ x: 0, y: 1 }}
-          />
-          {isFocused && <View style={styles.focusTint} />}
+        {/* Focused background highlight */}
+        <Animated.View
+          style={[StyleSheet.absoluteFill, styles.rowHighlight, { opacity: bgOpacity }]}
+        />
 
-          {isFocused && (
-            <Pressable
-              style={styles.removeBtn}
-              onPress={() => onRemove(item.id)}
-            >
-              <Feather name="x" size={13} color="#fff" />
-            </Pressable>
-          )}
-
-          <View style={styles.ratingPill}>
-            <Feather name="star" size={9} color={Colors.accent} />
-            <Text style={styles.ratingText}>{formatVoteAverage(item.vote_average)}</Text>
+        <Pressable
+          onFocus={onFocus}
+          onBlur={onBlur}
+          onPress={() => onPress(item)}
+          hasTVPreferredFocus={hasTVPreferredFocus}
+          style={[styles.rowPressable, focused && styles.rowPressableFocused]}
+        >
+          {/* Poster */}
+          <View style={styles.posterWrap}>
+            <Image
+              source={{ uri: posterUrl(item.poster_path, "w300") }}
+              style={styles.poster}
+              contentFit="cover"
+              borderRadius={8}
+              transition={300}
+            />
+            {isStreaming && (
+              <View style={styles.streamingDot} />
+            )}
           </View>
 
-          {streamCount > 0 && (
-            <View style={styles.streamBadge}>
-              <View style={styles.streamDot} />
-              <Text style={styles.streamText}>Streaming</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.info}>
-          {genres.length > 0 && (
-            <Text style={styles.genres} numberOfLines={1}>{genres.join(" · ")}</Text>
-          )}
-          <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-          <View style={styles.meta}>
-            <Text style={styles.year}>{releaseYear(item.release_date)}</Text>
-            <View style={[
-              styles.typeBadge,
-              { backgroundColor: item.media_type === "tv" ? Colors.tint + "22" : Colors.surfaceElevated }
-            ]}>
-              <Text style={[
-                styles.typeBadgeText,
-                { color: item.media_type === "tv" ? Colors.tint : Colors.textSecondary }
+          {/* Info */}
+          <View style={styles.info}>
+            {/* Type + Rating row */}
+            <View style={styles.metaRow}>
+              <View style={[
+                styles.typeBadge,
+                item.media_type === "tv"
+                  ? { backgroundColor: Colors.tint + "22" }
+                  : { backgroundColor: Colors.surfaceElevated },
               ]}>
-                {item.media_type === "tv" ? "SERIES" : "FILM"}
-              </Text>
+                <Text style={[
+                  styles.typeText,
+                  { color: item.media_type === "tv" ? Colors.tint : Colors.textSecondary },
+                ]}>
+                  {item.media_type === "tv" ? "TV SERIES" : "FILM"}
+                </Text>
+              </View>
+              <View style={styles.ratingRow}>
+                <Feather name="star" size={13} color={Colors.accent} />
+                <Text style={styles.ratingText}>{formatVoteAverage(item.vote_average)}</Text>
+              </View>
+              <Text style={styles.yearText}>{releaseYear(item.release_date)}</Text>
+              {isStreaming && (
+                <View style={styles.streamingBadge}>
+                  <View style={styles.streamingBadgeDot} />
+                  <Text style={styles.streamingBadgeText}>Streaming</Text>
+                </View>
+              )}
             </View>
+
+            {/* Title */}
+            <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+
+            {/* Genres */}
+            {genres.length > 0 && (
+              <Text style={styles.genreText} numberOfLines={1}>
+                {genres.join("  ·  ")}
+              </Text>
+            )}
+
+            {/* Overview */}
+            {item.overview ? (
+              <Text style={styles.overview} numberOfLines={2}>{item.overview}</Text>
+            ) : null}
           </View>
-        </View>
-      </Pressable>
-    </Animated.View>
+
+          {/* Chevron */}
+          <Feather
+            name="chevron-right"
+            size={22}
+            color={focused ? Colors.text : Colors.textSecondary}
+          />
+        </Pressable>
+
+        {/* Remove button — separate D-pad target */}
+        <RemoveButton onPress={handleRemove} />
+      </Animated.View>
+    </TVFocusGuideWrapper>
   );
+}
+
+// ─── Section Header ───────────────────────────────────────────────────────────
+
+function SectionHeader({ title, count }: { title: string; count: number }) {
+  return (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.sectionCountBadge}>
+        <Text style={styles.sectionCount}>{count}</Text>
+      </View>
+      <View style={styles.sectionLine} />
+    </View>
+  );
+}
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
+
+function sortByDateDesc(a?: string, b?: string): number {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  return new Date(b).getTime() - new Date(a).getTime();
 }
 
 export default function WatchlistScreen() {
@@ -138,109 +222,130 @@ export default function WatchlistScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
-  const handlePress = (item: ContentItem) => {
+  const handlePress = useCallback((item: ContentItem) => {
     router.push({ pathname: "/detail/[id]", params: { id: String(item.id) } });
-  };
+  }, []);
+
+  const tvShows = watchlist
+    .filter((i) => i.media_type === "tv")
+    .sort((a, b) => sortByDateDesc(a.release_date, b.release_date));
+
+  const movies = watchlist
+    .filter((i) => i.media_type === "movie")
+    .sort((a, b) => sortByDateDesc(a.release_date, b.release_date));
+
+  const sections = [
+    ...(tvShows.length > 0 ? [{ title: "TV Shows", data: tvShows }] : []),
+    ...(movies.length > 0  ? [{ title: "Movies",   data: movies  }] : []),
+  ];
 
   return (
-    <TVFocusGuideWrapper style={[styles.root, { paddingTop: topPad }]}>
+    <View style={[styles.root, { paddingTop: topPad }]}>
+      {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>My List</Text>
-          <Text style={styles.subtitle}>
-            {watchlist.length} title{watchlist.length !== 1 ? "s" : ""}
-          </Text>
+          <Text style={styles.headerTitle}>Watchlist</Text>
+          {watchlist.length > 0 && (
+            <Text style={styles.headerCount}>
+              {watchlist.length} title{watchlist.length !== 1 ? "s" : ""}
+            </Text>
+          )}
         </View>
-        <View style={styles.headerBadge}>
-          <Feather name="bookmark" size={18} color={Colors.tint} />
+        <View style={styles.headerIcon}>
+          <Feather name="bookmark" size={22} color={Colors.tint} />
         </View>
       </View>
 
+      {/* Empty state */}
       {watchlist.length === 0 ? (
         <View style={styles.emptyState}>
           <View style={styles.emptyIconRing}>
-            <Feather name="bookmark" size={48} color={Colors.tint} />
+            <Feather name="bookmark" size={52} color={Colors.tint} />
           </View>
-          <Text style={styles.emptyTitle}>Your List is Empty</Text>
+          <Text style={styles.emptyTitle}>Your Watchlist is Empty</Text>
           <Text style={styles.emptyBody}>
-            Browse Home or Search and add titles to your list
+            Browse Home or Search and press Add to List on any title
           </Text>
         </View>
       ) : (
         <TVFocusGuideWrapper style={{ flex: 1 }}>
-          <FlatList
-            key={`wl-${NUM_COLS}`}
-            data={watchlist}
-            keyExtractor={(item) => String(item.id)}
-            numColumns={NUM_COLS}
-            renderItem={({ item, index }) => (
-              <WatchlistCard
+          <SectionList
+            sections={sections}
+            keyExtractor={(item) => `wl-${item.id}`}
+            renderSectionHeader={({ section }) => (
+              <SectionHeader title={section.title} count={section.data.length} />
+            )}
+            renderItem={({ item, index, section }) => (
+              <WatchlistItem
                 item={item}
                 onPress={handlePress}
                 onRemove={removeFromWatchlist}
-                hasTVPreferredFocus={index === 0}
+                hasTVPreferredFocus={index === 0 && section.title === sections[0]?.title}
               />
             )}
-            contentContainerStyle={[
-              styles.grid,
-              { paddingBottom: bottomPad + 80 },
-            ]}
-            columnWrapperStyle={styles.row}
+            contentContainerStyle={{ paddingBottom: bottomPad + 80, paddingHorizontal: 64 }}
             showsVerticalScrollIndicator={false}
+            stickySectionHeadersEnabled={false}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
           />
         </TVFocusGuideWrapper>
       )}
-    </TVFocusGuideWrapper>
+    </View>
   );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: Colors.background,
   },
+
+  // Header
   header: {
-    paddingHorizontal: 52,
+    paddingHorizontal: 64,
     paddingTop: 14,
-    paddingBottom: 24,
+    paddingBottom: 28,
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
   },
   headerTitle: {
     fontFamily: "Inter_700Bold",
-    fontSize: 30,
+    fontSize: 52,
+    letterSpacing: -1,
     color: Colors.text,
-    letterSpacing: -0.5,
   },
-  subtitle: {
+  headerCount: {
     fontFamily: "Inter_400Regular",
-    fontSize: 15,
+    fontSize: 18,
     color: Colors.textSecondary,
-    marginTop: 3,
+    marginTop: 4,
   },
-  headerBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  headerIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: Colors.surfaceElevated,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
     borderColor: Colors.tint + "40",
   },
+
+  // Empty state
   emptyState: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 16,
+    gap: 18,
     paddingBottom: 80,
-    paddingHorizontal: 48,
   },
   emptyIconRing: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 110,
+    height: 110,
+    borderRadius: 55,
     backgroundColor: Colors.surfaceElevated,
     alignItems: "center",
     justifyContent: "center",
@@ -249,159 +354,198 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontFamily: "Inter_600SemiBold",
-    fontSize: 24,
+    fontSize: 28,
     color: Colors.text,
   },
   emptyBody: {
     fontFamily: "Inter_400Regular",
-    fontSize: 16,
+    fontSize: 18,
     color: Colors.textSecondary,
     textAlign: "center",
-    maxWidth: 420,
+    maxWidth: 500,
   },
-  grid: {
-    paddingHorizontal: 52,
-    paddingTop: 4,
-    gap: 16,
-  },
-  row: {
-    gap: 16,
-    marginBottom: 16,
-    flex: 1,
-  },
-  cardOuter: {
-    flex: 1,
-    position: "relative",
+
+  // Section header
+  sectionHeader: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 12,
+    paddingTop: 32,
+    paddingBottom: 16,
   },
-  cardGlow: {
-    position: "absolute",
-    top: -10,
-    left: -10,
-    right: -10,
-    bottom: -10,
-    borderRadius: 18,
-    shadowColor: Colors.focusRing,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.7,
-    shadowRadius: 22,
-    elevation: 15,
+  sectionTitle: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 22,
+    color: Colors.text,
+    flexShrink: 0,
   },
-  card: {
+  sectionCountBadge: {
+    backgroundColor: Colors.surfaceElevated,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  sectionCount: {
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  sectionLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Colors.border,
+  },
+
+  // Row
+  rowWrapper: {
     width: "100%",
-    borderRadius: 10,
+  },
+  rowContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 14,
     overflow: "hidden",
-    backgroundColor: Colors.surface,
+  },
+  rowHighlight: {
+    backgroundColor: Colors.surfaceElevated,
+    borderRadius: 14,
+  },
+  rowPressable: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 20,
+    padding: 16,
+    borderRadius: 14,
     borderWidth: 2,
     borderColor: "transparent",
   },
-  cardFocused: {
+  rowPressableFocused: {
     borderColor: Colors.focusRing,
-    borderWidth: 3,
+    shadowColor: Colors.focusRing,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
   },
-  posterArea: {
-    aspectRatio: 2 / 3,
-    width: "100%",
+
+  // Poster
+  posterWrap: {
     position: "relative",
+    flexShrink: 0,
   },
-  cardGradient: {
+  poster: {
+    width: 90,
+    height: 135,
+  },
+  streamingDot: {
     position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: "55%",
+    top: 6,
+    right: 6,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: Colors.accentGreen,
+    borderWidth: 1.5,
+    borderColor: Colors.background,
   },
-  focusTint: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(99,102,241,0.07)",
+
+  // Info column
+  info: {
+    flex: 1,
+    gap: 8,
   },
-  removeBtn: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(239,68,68,0.85)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ratingPill: {
-    position: "absolute",
-    bottom: 8,
-    right: 8,
+  metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
-    backgroundColor: "rgba(10,10,15,0.82)",
-    borderRadius: 4,
-    paddingHorizontal: 6,
+    gap: 10,
+    flexWrap: "wrap",
+  },
+  typeBadge: {
+    borderRadius: 5,
+    paddingHorizontal: 8,
     paddingVertical: 3,
+  },
+  typeText: {
+    fontFamily: "Inter_700Bold",
+    fontSize: 10,
+    letterSpacing: 0.8,
+  },
+  ratingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   ratingText: {
     fontFamily: "Inter_700Bold",
-    fontSize: 10,
+    fontSize: 14,
     color: Colors.accent,
   },
-  streamBadge: {
-    position: "absolute",
-    bottom: 8,
-    left: 8,
+  yearText: {
+    fontFamily: "Inter_400Regular",
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  streamingBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "rgba(10,10,15,0.82)",
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
   },
-  streamDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
+  streamingBadgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: Colors.accentGreen,
   },
-  streamText: {
+  streamingBadgeText: {
     fontFamily: "Inter_500Medium",
-    fontSize: 9,
+    fontSize: 12,
     color: Colors.accentGreen,
   },
-  info: {
-    padding: 10,
-    gap: 4,
-  },
-  genres: {
-    fontFamily: "Inter_500Medium",
-    fontSize: 10,
-    color: Colors.tint,
-    letterSpacing: 0.3,
-    textTransform: "uppercase",
-  },
-  cardTitle: {
+  title: {
     fontFamily: "Inter_700Bold",
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 20,
+    lineHeight: 26,
     color: Colors.text,
   },
-  meta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 2,
+  genreText: {
+    fontFamily: "Inter_500Medium",
+    fontSize: 13,
+    color: Colors.tint,
+    letterSpacing: 0.2,
   },
-  year: {
+  overview: {
     fontFamily: "Inter_400Regular",
-    fontSize: 11,
+    fontSize: 14,
+    lineHeight: 20,
     color: Colors.textSecondary,
   },
-  typeBadge: {
-    borderRadius: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 2,
+
+  // Remove button
+  removeBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: Colors.surfaceElevated,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: Colors.border,
+    marginRight: 4,
+    flexShrink: 0,
   },
-  typeBadgeText: {
-    fontFamily: "Inter_600SemiBold",
-    fontSize: 9,
-    letterSpacing: 0.5,
+  removeBtnFocused: {
+    backgroundColor: Colors.accentRed,
+    borderColor: Colors.accentRed,
+    shadowColor: Colors.accentRed,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+  },
+
+  separator: {
+    height: 8,
   },
 });
