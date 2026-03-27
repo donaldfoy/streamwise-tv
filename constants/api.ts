@@ -4,8 +4,7 @@ const API_BASE = "https://streamwise.live/api";
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const IMG_BASE = "https://image.tmdb.org/t/p";
 
-// TMDB API key — override via EXPO_PUBLIC_TMDB_API_KEY in .env
-const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY || "c5b10218ea28443de74891440802ed69";
+const TMDB_KEY = "c5b10218ea28443de74891440802ed69";
 
 export function posterUrl(path: string | null | undefined, size: "w300" | "w500" | "original" = "w500"): string {
   if (!path) return "";
