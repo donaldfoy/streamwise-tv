@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
   ActivityIndicator,
 } from "react-native";
+import VideoPlayerModal from "@/components/VideoPlayerModal";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
@@ -183,7 +184,7 @@ function CastCard({ member }: { member: CastMember }) {
 
 // ─── Video Tile ───────────────────────────────────────────────────────────────
 
-function VideoTile({ video }: { video: Video }) {
+function VideoTile({ video, onPlay }: { video: Video; onPlay: (key: string, title: string) => void }) {
   const [focused, setFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
   const thumb = `https://img.youtube.com/vi/${video.key}/mqdefault.jpg`;
@@ -197,14 +198,9 @@ function VideoTile({ video }: { video: Video }) {
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 200 }).start();
   }, [scale]);
 
-  const handlePress = useCallback(async () => {
-    const url = `https://www.youtube.com/watch?v=${video.key}`;
-    try {
-      await Linking.openURL(url);
-    } catch {
-      Alert.alert("Open YouTube", `Watch "${video.name}" on YouTube.`, [{ text: "OK" }]);
-    }
-  }, [video.key, video.name]);
+  const handlePress = useCallback(() => {
+    onPlay(video.key, video.name);
+  }, [video.key, video.name, onPlay]);
 
   return (
     <Animated.View style={[styles.videoTileOuter, { transform: [{ scale }] }]}>
@@ -315,6 +311,12 @@ export default function DetailScreen() {
   const { width, height } = useWindowDimensions();
   const [detail, setDetail] = useState<DetailItem | null>(null);
   const [loading, setLoading] = useState(false);
+  const [activeVideo, setActiveVideo] = useState<{ key: string; title: string } | null>(null);
+
+  const playVideo = useCallback((key: string, title: string) => {
+    setActiveVideo({ key, title });
+  }, []);
+  const closeVideo = useCallback(() => setActiveVideo(null), []);
 
   const baseItem = getItem(id ?? "");
   const inList = baseItem ? isInWatchlist(baseItem.id) : false;
@@ -586,10 +588,7 @@ export default function DetailScreen() {
                 label="Watch Trailer"
                 variant="secondary"
                 color={Colors.accentRed}
-                onPress={async () => {
-                  const url = `https://www.youtube.com/watch?v=${trailers[0].key}`;
-                  try { await Linking.openURL(url); } catch {}
-                }}
+                onPress={() => playVideo(trailers[0].key, trailers[0].name)}
               />
             )}
           </TVFocusGuideWrapper>
@@ -654,7 +653,7 @@ export default function DetailScreen() {
           <View style={styles.section}>
             <SectionLabel label="Trailers & Videos" icon="film" />
             <TVFocusGuideWrapper style={styles.videoRow}>
-              {allVideos.map(v => <VideoTile key={v.id} video={v} />)}
+              {allVideos.map(v => <VideoTile key={v.id} video={v} onPlay={playVideo} />)}
             </TVFocusGuideWrapper>
           </View>
         )}
@@ -745,6 +744,13 @@ export default function DetailScreen() {
 
         <View style={{ height: 80 }} />
       </ScrollView>
+
+      {/* In-app video player */}
+      <VideoPlayerModal
+        videoKey={activeVideo?.key ?? null}
+        videoTitle={activeVideo?.title}
+        onClose={closeVideo}
+      />
     </View>
   );
 }
