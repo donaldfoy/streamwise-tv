@@ -4,61 +4,51 @@
  * React Native's generated RCTThirdPartyFabricComponentsProvider.mm uses a
  * literal NSDictionary for third-party component registration. If any class
  * is absent (e.g. a module not linked for tvOS), NSClassFromString() returns
- * nil and inserting nil into an NSDictionary literal crashes immediately with
- * NSInvalidArgumentException "attempt to insert nil object".
+ * nil and inserting nil into an NSDictionary literal crashes at startup.
  *
- * This plugin injects a Podfile post_install hook that finds the generated
- * .mm file and rewrites the dictionary construction to guard each insertion:
+ * FIX: Inject Ruby patch code INSIDE the existing post_install block that
+ * Expo already generates — after react_native_post_install(installer, ...).
+ * CocoaPods only allows ONE post_install block, so we must merge, not append.
  *
- *   Class c = NSClassFromString(@"RNCWebView");
- *   if (c) dict[@"RNCWebView"] = c;
- *
- * This is idempotent and safe — entries are only added when the native class
- * actually exists in the binary.
+ * The patch finds the generated .mm file after pod install and rewrites:
+ *   thirdPartyComponents = @{ @"Foo": NSClassFromString(@"Foo"), ... };
+ * into nil-safe guarded insertions that skip missing classes silently.
  */
 
 const { withDangerousMod } = require("@expo/config-plugins");
 const fs = require("fs");
 const path = require("path");
 
-const MARKER = "# [withNilSafeNativeComponents] nil-safe patch";
+const MARKER = "# [withNilSafeNativeComponents]";
 
-const POST_INSTALL_HOOK = `
-${MARKER}
-post_install do |installer|
-  files = Dir.glob([
+// Ruby code to inject INSIDE the existing post_install block.
+// Uses prefixed variable names (__ns_*) to avoid colliding with anything
+// the existing block declares.
+const PATCH_BODY = `
+  ${MARKER} nil-safe patch — injected by withNilSafeNativeComponents plugin
+  __ns_files = Dir.glob([
     "#{installer.sandbox.root}/**/RCTThirdPartyFabricComponentsProvider.mm",
     "#{installer.sandbox.root}/**/*ThirdParty*ComponentsProvider.mm",
   ]).uniq
-
-  files.each do |file|
-    content = File.read(file)
-    next unless content.include?("thirdPartyComponents = @{")
-
-    # Extract each key/class pair from the literal dictionary
-    pairs = content.scan(/@"(\\w+)"\\s*:\\s*NSClassFromString\\(@"(\\w+)"\\)/)
-    next if pairs.empty?
-
-    # Build a nil-safe replacement block
-    guard_lines = pairs.map do |key, cls|
-      "    { Class _c = NSClassFromString(@\\"#{cls}\\"); if (_c) [(NSMutableDictionary *)thirdPartyComponents setObject:_c forKey:@\\"#{key}\\"]; }"
+  __ns_files.each do |__ns_file|
+    __ns_content = File.read(__ns_file)
+    next unless __ns_content.include?("thirdPartyComponents = @{")
+    __ns_pairs = __ns_content.scan(/@"(\\w+)"\\s*:\\s*NSClassFromString\\(@"(\\w+)"\\)/)
+    next if __ns_pairs.empty?
+    __ns_guards = __ns_pairs.map do |__ns_key, __ns_cls|
+      "    { Class _c = NSClassFromString(@\\"#{__ns_cls}\\"); if (_c) [(NSMutableDictionary *)thirdPartyComponents setObject:_c forKey:@\\"#{__ns_key}\\"]; }"
     end.join("\\n")
-
-    nil_safe_block = <<~OBJC
-      thirdPartyComponents = [NSMutableDictionary dictionary];
-    #{guard_lines}
-      thirdPartyComponents = [(NSMutableDictionary *)thirdPartyComponents copy];
-    OBJC
-
-    patched = content.gsub(/thirdPartyComponents = @\\{[\\s\\S]*?\\};/, nil_safe_block.strip)
-
-    if patched != content
-      File.write(file, patched)
-      puts "[withNilSafeNativeComponents] Patched #{File.basename(file)} — nil-safe component registration applied"
+    __ns_replacement = [
+      "thirdPartyComponents = [NSMutableDictionary dictionary];",
+      __ns_guards,
+      "    thirdPartyComponents = [(NSMutableDictionary *)thirdPartyComponents copy];",
+    ].join("\\n")
+    __ns_patched = __ns_content.gsub(/thirdPartyComponents = @\\{[\\s\\S]*?\\};/, __ns_replacement)
+    if __ns_patched != __ns_content
+      File.write(__ns_file, __ns_patched)
+      puts "[withNilSafeNativeComponents] Patched #{File.basename(__ns_file)} — nil classes will be skipped"
     end
-  end
-end
-`;
+  end`;
 
 /** @type {import('@expo/config-plugins').ConfigPlugin} */
 module.exports = function withNilSafeNativeComponents(config) {
@@ -76,13 +66,51 @@ module.exports = function withNilSafeNativeComponents(config) {
 
       let podfile = fs.readFileSync(podfilePath, "utf8");
 
-      if (!podfile.includes(MARKER)) {
-        podfile = podfile.trimEnd() + "\n" + POST_INSTALL_HOOK + "\n";
+      // Already patched — skip.
+      if (podfile.includes(MARKER)) {
+        return config;
+      }
+
+      // ── Strategy 1: inject after react_native_post_install(installer…) ──
+      // Expo's generated Podfile has a post_install block containing a call
+      // like: react_native_post_install(installer, ...) or
+      //        react_native_post_install(installer)
+      // We insert our Ruby block on the very next line after that call.
+      const rnPostInstallRe = /([ \t]*react_native_post_install\s*\([^)]*\)[ \t]*\n)/;
+      if (rnPostInstallRe.test(podfile)) {
+        podfile = podfile.replace(rnPostInstallRe, `$1${PATCH_BODY}\n`);
         fs.writeFileSync(podfilePath, podfile);
         console.log(
-          "[withNilSafeNativeComponents] Injected nil-safe post_install hook into Podfile"
+          "[withNilSafeNativeComponents] Injected nil-safe patch inside existing post_install block (after react_native_post_install)"
         );
+        return config;
       }
+
+      // ── Strategy 2: inject before the closing `end` of post_install ──
+      // Fallback: find `post_install do |installer|` block and insert before
+      // its final `end`. This works when the exact anchor above isn't present.
+      const postInstallRe = /(post_install do \|installer\|)([\s\S]*?)(^end\b)/m;
+      if (postInstallRe.test(podfile)) {
+        podfile = podfile.replace(
+          postInstallRe,
+          (_, open, body, close) => `${open}${body}${PATCH_BODY}\n${close}`
+        );
+        fs.writeFileSync(podfilePath, podfile);
+        console.log(
+          "[withNilSafeNativeComponents] Injected nil-safe patch inside existing post_install block (before closing end)"
+        );
+        return config;
+      }
+
+      // ── Strategy 3: no existing post_install — create one ──
+      // Last resort only. CocoaPods allows exactly one, and Expo always
+      // generates one, so this branch should rarely if ever trigger.
+      const standalone = `\npost_install do |installer|\n${PATCH_BODY}\nend\n`;
+      podfile = podfile.trimEnd() + standalone;
+      fs.writeFileSync(podfilePath, podfile);
+      console.log(
+        "[withNilSafeNativeComponents] No existing post_install found — created new block (verify no duplicate post_install warnings)"
+      );
 
       return config;
     },
