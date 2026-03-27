@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   Text,
   Platform,
-  findNodeHandle,
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
@@ -38,17 +37,6 @@ type RowDef = {
   title: string;
   items: ContentItem[];
   cardSize: CardSize;
-};
-
-/**
- * Per-row: arrays of nextFocusUp and nextFocusDown node handles.
- * Index in the array == card index in the row.
- * undefined means "let tvOS decide" (first/last rows naturally have
- * no adjacent row in one direction).
- */
-type RowHandles = {
-  up: (number | undefined)[];
-  down: (number | undefined)[];
 };
 
 export default function HomeScreen() {
@@ -98,7 +86,6 @@ export default function HomeScreen() {
   const moviesData   = movies.data   ?? [];
   const tvData       = tvShows.data  ?? [];
 
-  // Ordered, stable list of visible rails once data is loaded.
   const rows = useMemo((): RowDef[] => {
     const r: RowDef[] = [];
     if (trendingData.length > 0)    r.push({ key: "trending",   title: "Trending Now",         items: trendingData,              cardSize: "lg" });
@@ -116,105 +103,67 @@ export default function HomeScreen() {
   }, [trendingData, suggestedForYou, becauseYouWatched, streamingForYou, justAdded, newReleases, moviesData, tvData, popularMovies, topRatedTV, hiddenGems]);
 
   /**
-   * rowCardRefs[rowIndex] = stable array of refs, one per card.
-   * Populated by ContentRow.onRefsReady after each row mounts.
-   * Keys are row indices matching the `rows` array.
+   * rowCardRefs[rowIndex] = stable array of refs for every card in that row.
+   * Populated by ContentRow.onRefsReady (refs are non-null at that point).
+   * Read only inside onCardFocus (also post-mount → always non-null).
    */
   const rowCardRefs = useRef<Map<number, React.RefObject<View>[]>>(new Map());
 
   /**
-   * Number of rows that have called onRefsReady.
-   * When this reaches rows.length we compute all nextFocusUp/Down handles.
-   */
-  const [mountedRowCount, setMountedRowCount] = useState(0);
-
-  /**
-   * Computed nextFocusUp / nextFocusDown node-handle arrays, keyed by
-   * row index. Undefined entries = no override (let tvOS decide).
-   * Set after all rows mount; triggers one extra render to wire handles.
-   */
-  const [rowHandles, setRowHandles] = useState<Map<number, RowHandles>>(new Map());
-
-  // Reset when the rows list changes (e.g. more data arrived).
-  const prevRowsRef = useRef<RowDef[]>([]);
-  if (prevRowsRef.current !== rows) {
-    prevRowsRef.current = rows;
-    rowCardRefs.current.clear();
-    // Reset counters synchronously during render so the next effect
-    // re-triggers correctly.  Using a layout-safe pattern: we do NOT
-    // call setState here (would double-render); instead we rely on the
-    // useEffect below which re-runs whenever rows changes.
-  }
-
-  // Re-arm when rows changes.
-  useEffect(() => {
-    setMountedRowCount(0);
-    setRowHandles(new Map());
-  }, [rows]);
-
-  /**
-   * Once every row in the current `rows` list has mounted and given us
-   * its refs, compute the full nextFocusUp / nextFocusDown handle table.
+   * guideDestinations[gapIndex] = [singleRef] that the UIFocusGuide between
+   * row gapIndex and row gapIndex+1 will redirect focus to.
    *
-   * Navigation rule (hard-coded, no heuristics):
-   *   Up   → adjacent row above only (rowIndex - 1)
-   *   Down → adjacent row below only (rowIndex + 1)
-   *   target item = min(current item index, adjacent row card count - 1)
+   * gapIndex K = the guide sitting between Row K and Row K+1.
+   *
+   * Rule (hard-coded, no native heuristics):
+   *   When card (rowIndex=N, itemIndex=I) gets focus:
+   *     guide K=N-1: destinations = [row[N-1][ min(I, row[N-1].length-1) ]]
+   *       → Up from Row N → lands on clamped card in Row N-1 (adjacent only)
+   *     guide K=N:   destinations = [row[N+1][ min(I, row[N+1].length-1) ]]
+   *       → Down from Row N → lands on clamped card in Row N+1 (adjacent only)
+   *
+   * Destinations are set from inside onFocus callbacks → refs are non-null.
+   * Guides start with destinations={undefined} → native handles first entry.
    */
-  useEffect(() => {
-    if (rows.length === 0 || mountedRowCount < rows.length) return;
-
-    const handles = new Map<number, RowHandles>();
-
-    rows.forEach((row, ri) => {
-      const refs = rowCardRefs.current.get(ri);
-      if (!refs) return;
-
-      const up: (number | undefined)[]   = [];
-      const down: (number | undefined)[] = [];
-
-      refs.forEach((ref, ci) => {
-        // --- nextFocusUp: row above, clamped ---
-        if (ri > 0) {
-          const aboveRefs = rowCardRefs.current.get(ri - 1);
-          if (aboveRefs && aboveRefs.length > 0) {
-            const targetCi = Math.min(ci, aboveRefs.length - 1);
-            const handle = findNodeHandle(aboveRefs[targetCi].current);
-            up[ci] = handle ?? undefined;
-          } else {
-            up[ci] = undefined;
-          }
-        } else {
-          up[ci] = undefined; // first row — let Up go to HeroBanner naturally
-        }
-
-        // --- nextFocusDown: row below, clamped ---
-        if (ri < rows.length - 1) {
-          const belowRefs = rowCardRefs.current.get(ri + 1);
-          if (belowRefs && belowRefs.length > 0) {
-            const targetCi = Math.min(ci, belowRefs.length - 1);
-            const handle = findNodeHandle(belowRefs[targetCi].current);
-            down[ci] = handle ?? undefined;
-          } else {
-            down[ci] = undefined;
-          }
-        } else {
-          down[ci] = undefined; // last row — no row below
-        }
-      });
-
-      handles.set(ri, { up, down });
-    });
-
-    setRowHandles(handles);
-  }, [mountedRowCount, rows]);
+  const [guideDestinations, setGuideDestinations] =
+    useState<Map<number, React.RefObject<View>[]>>(new Map());
 
   const handleRefsReady = useCallback(
     (rowIndex: number) => (refs: React.RefObject<View>[]) => {
       rowCardRefs.current.set(rowIndex, refs);
-      setMountedRowCount((c) => c + 1);
     },
     []
+  );
+
+  const handleCardFocus = useCallback(
+    (rowIndex: number) => (itemIndex: number) => {
+      setGuideDestinations((prev) => {
+        const next = new Map(prev);
+
+        // Guide above this row (gapIndex = rowIndex - 1):
+        // redirects Up from Row N → clamped card in Row N-1.
+        if (rowIndex > 0) {
+          const aboveRefs = rowCardRefs.current.get(rowIndex - 1);
+          if (aboveRefs && aboveRefs.length > 0) {
+            const tci = Math.min(itemIndex, aboveRefs.length - 1);
+            next.set(rowIndex - 1, [aboveRefs[tci]]);
+          }
+        }
+
+        // Guide below this row (gapIndex = rowIndex):
+        // redirects Down from Row N → clamped card in Row N+1.
+        if (rowIndex < rows.length - 1) {
+          const belowRefs = rowCardRefs.current.get(rowIndex + 1);
+          if (belowRefs && belowRefs.length > 0) {
+            const tci = Math.min(itemIndex, belowRefs.length - 1);
+            next.set(rowIndex, [belowRefs[tci]]);
+          }
+        }
+
+        return next;
+      });
+    },
+    [rows.length]
   );
 
   if (isLoading) {
@@ -257,21 +206,41 @@ export default function HomeScreen() {
         )}
 
         <View style={styles.rows}>
-          {rows.map((row, rowIndex) => {
-            const handles = rowHandles.get(rowIndex);
-            return (
+          {rows.map((row, rowIndex) => (
+            <React.Fragment key={row.key}>
+              {/*
+               * Inter-row UIFocusGuide strip (gapIndex = rowIndex - 1).
+               * Placed ABOVE each row (except the first).
+               * Height = 16px within the 24px bottom margin of the row above.
+               *
+               * When destinations is set (after first card focus), tvOS
+               * redirects any focus that enters this strip to the target card.
+               * This implements adjacent-row-only, clamped-index navigation
+               * using the UIFocusGuide API — the only focus-redirect API
+               * available on tvOS.
+               *
+               * destinations starts undefined → native spatial engine decides
+               * (safe for initial entry from HeroBanner).
+               * After a card is focused → destinations = [clamped target ref]
+               * → all subsequent Up/Down transitions are explicit.
+               */}
+              {rowIndex > 0 && (
+                <TVFocusGuideWrapper
+                  destinations={guideDestinations.get(rowIndex - 1)}
+                  style={styles.interRowGuide}
+                />
+              )}
+
               <ContentRow
-                key={row.key}
                 title={row.title}
                 items={row.items}
                 cardSize={row.cardSize}
                 onCardPress={handleCardPress}
                 onRefsReady={handleRefsReady(rowIndex)}
-                cardUpHandles={handles?.up}
-                cardDownHandles={handles?.down}
+                onCardFocus={handleCardFocus(rowIndex)}
               />
-            );
-          })}
+            </React.Fragment>
+          ))}
         </View>
       </ScrollView>
     </TVFocusGuideWrapper>
@@ -288,6 +257,15 @@ const styles = StyleSheet.create({
   },
   rows: {
     paddingTop: 40,
+  },
+  /**
+   * Invisible UIFocusGuide strip between rows.
+   * Must have non-zero height to be detectable by the tvOS spatial engine.
+   * Sits in the gap left by ContentRow's marginBottom: 24.
+   */
+  interRowGuide: {
+    height: 16,
+    width: "100%",
   },
   centered: {
     flex: 1,
