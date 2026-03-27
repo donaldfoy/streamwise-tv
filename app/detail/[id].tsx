@@ -8,6 +8,7 @@ import {
   Animated,
   Platform,
   Alert,
+  Linking,
 } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -27,6 +28,23 @@ import { getItem } from "@/constants/contentStore";
 import { useWatchlist } from "@/hooks/useWatchlist";
 import { TVFocusGuideWrapper } from "@/components/TVFocusGuideViewWrapper";
 import type { ContentItem, StreamingProvider } from "@/constants/types";
+
+// tvOS URL schemes for major streaming services (provider_id → scheme)
+const PROVIDER_SCHEMES: Record<number, string> = {
+  8:    "nflx://",          // Netflix
+  9:    "aiv://",           // Amazon Prime Video
+  15:   "hulu://",          // Hulu
+  337:  "disneyplus://",    // Disney+
+  384:  "hbomax://",        // HBO Max
+  1899: "max://",           // Max
+  386:  "peacocktv://",     // Peacock
+  531:  "paramountplus://", // Paramount+
+  2:    "videos://",        // Apple TV+ (TV app)
+  350:  "appletvplus://",   // Apple TV+
+  283:  "crunchyroll://",   // Crunchyroll
+  43:   "starz://",         // Starz
+  257:  "fubo://",          // Fubo
+};
 
 function ActionButton({
   icon,
@@ -104,13 +122,21 @@ function ProviderChip({ provider }: { provider: StreamingProvider }) {
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 180 }).start();
   }, [scale]);
 
-  const handlePress = useCallback(() => {
+  const handlePress = useCallback(async () => {
+    const scheme = PROVIDER_SCHEMES[provider.provider_id];
+    if (scheme) {
+      const canOpen = await Linking.canOpenURL(scheme);
+      if (canOpen) {
+        Linking.openURL(scheme);
+        return;
+      }
+    }
     Alert.alert(
       provider.provider_name,
-      "Open this app on your Apple TV to start watching.",
-      [{ text: "OK", style: "default" }]
+      `Open the ${provider.provider_name} app on your Apple TV to watch this title.`,
+      [{ text: "Got it" }]
     );
-  }, [provider.provider_name]);
+  }, [provider.provider_id, provider.provider_name]);
 
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
