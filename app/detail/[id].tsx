@@ -816,10 +816,6 @@ const styles = StyleSheet.create({
     height: 450,
     flexShrink: 0,
     borderRadius: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 32 },
-    shadowOpacity: 0.85,
-    shadowRadius: 40,
   },
 
   infoCol: { flex: 1, gap: 18, paddingTop: 6 },
@@ -888,7 +884,7 @@ const styles = StyleSheet.create({
   actionBtnActive: { backgroundColor: Colors.tint + "30", borderColor: Colors.tint + "60" },
   actionBtnFocused: {
     borderColor: Colors.focusRing,
-    shadowColor: Colors.focusRing, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 18,
+    backgroundColor: "rgba(99,102,241,0.18)",
   },
   actionBtnLabel: { fontFamily: "Inter_600SemiBold", fontSize: 20, color: Colors.text },
   actionBtnLabelPrimary: { color: "#fff" },
@@ -911,8 +907,8 @@ const styles = StyleSheet.create({
     borderWidth: 2, borderColor: "rgba(255,255,255,0.15)",
   },
   providerChipFocused: {
-    borderColor: Colors.focusRing, backgroundColor: "rgba(99,102,241,0.2)",
-    shadowColor: Colors.focusRing, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 12,
+    borderColor: Colors.focusRing,
+    backgroundColor: "rgba(99,102,241,0.2)",
   },
   providerLogo: { width: 36, height: 36 },
   providerName: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: Colors.text, maxWidth: 140 },
@@ -926,7 +922,6 @@ const styles = StyleSheet.create({
   },
   videoTileFocused: {
     borderColor: Colors.focusRing,
-    shadowColor: Colors.focusRing, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 14,
   },
   videoThumb: { width: "100%", height: 192 },
   videoPlayBtn: {
@@ -956,7 +951,6 @@ const styles = StyleSheet.create({
   },
   castCardFocused: {
     borderColor: Colors.focusRing, backgroundColor: "rgba(99,102,241,0.12)",
-    shadowColor: Colors.focusRing, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 12,
   },
   castPhoto: { width: 80, height: 80, borderRadius: 40 },
   castPhotoPlaceholder: { backgroundColor: Colors.surfaceElevated, alignItems: "center", justifyContent: "center" },
@@ -964,7 +958,6 @@ const styles = StyleSheet.create({
   castName: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: Colors.text, textAlign: "center" },
   castCharacter: { fontFamily: "Inter_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "center" },
 
-  // Info grid
   infoGrid: { gap: 0, backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 14, overflow: "hidden" },
   infoRow: {
     flexDirection: "row", justifyContent: "space-between",
