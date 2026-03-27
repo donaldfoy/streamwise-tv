@@ -12,20 +12,17 @@ type ContentRowProps = {
   onCardPress?: (item: ContentItem) => void;
   firstItemFocused?: boolean;
   /**
-   * Called once after mount with the stable ref array for every card
-   * in this row (all refs are non-null at call time). Parent stores
-   * them to compute nextFocusUp/Down handles for adjacent rows.
+   * Called once after mount with stable refs for every card (all non-null
+   * at call time). Parent stores them so inter-row TVFocusGuideViews can
+   * compute non-null destinations when a card receives focus.
    */
   onRefsReady?: (refs: React.RefObject<View>[]) => void;
   /**
-   * nextFocusUp node handle per card index. Tells tvOS native focus
-   * engine exactly where to go on Up press — no heuristics involved.
+   * Called whenever a card in this row receives tvOS focus.
+   * Parent uses this to update the UIFocusGuide destinations for the
+   * guides immediately above and below this row.
    */
-  cardUpHandles?: (number | undefined)[];
-  /**
-   * nextFocusDown node handle per card index. Same as above for Down.
-   */
-  cardDownHandles?: (number | undefined)[];
+  onCardFocus?: (itemIndex: number) => void;
 };
 
 export function ContentRow({
@@ -35,13 +32,12 @@ export function ContentRow({
   onCardPress,
   firstItemFocused = false,
   onRefsReady,
-  cardUpHandles,
-  cardDownHandles,
+  onCardFocus,
 }: ContentRowProps) {
   /**
-   * Grow-only stable ref container — refs are never recreated across
-   * re-renders, only appended. This is safe because item order is stable
-   * once TMDB data loads.
+   * Stable grow-only ref container. Refs are created once and reused
+   * across re-renders. They are NEVER passed to TVFocusGuideView during
+   * render (only after mount, when .current is guaranteed non-null).
    */
   const refsContainer = useRef<React.RefObject<View>[]>([]);
   while (refsContainer.current.length < items.length) {
@@ -82,8 +78,7 @@ export function ContentRow({
             onPress={onCardPress}
             hasTVPreferredFocus={firstItemFocused && index === 0}
             cardRef={cardRefs[index]}
-            nextFocusUp={cardUpHandles?.[index]}
-            nextFocusDown={cardDownHandles?.[index]}
+            onFocusCallback={() => onCardFocus?.(index)}
           />
         ))}
       </ScrollView>
@@ -93,7 +88,7 @@ export function ContentRow({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 40,
+    marginBottom: 24,
   },
   sectionTitle: {
     fontFamily: "Inter_700Bold",
