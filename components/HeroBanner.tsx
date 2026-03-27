@@ -289,10 +289,7 @@ const styles = StyleSheet.create({
   },
   heroBtnFocused: {
     borderColor: Colors.focusRing,
-    shadowColor: Colors.focusRing,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
+    backgroundColor: "rgba(99,102,241,0.18)",
   },
   heroBtnLabel: {
     fontFamily: "Inter_600SemiBold",
