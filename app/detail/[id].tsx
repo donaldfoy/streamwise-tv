@@ -325,12 +325,22 @@ export default function DetailScreen() {
   const { width, height } = useWindowDimensions();
   const [detail, setDetail] = useState<DetailItem | null>(null);
   const [loading, setLoading] = useState(false);
-  const playVideo = useCallback((key: string, title: string) => {
+  const playVideo = useCallback(async (key: string, title: string) => {
     const url = youtubeWatchUrl(key);
     console.log("[TrailerDestination]", { key, url });
-    Linking.openURL(url).catch(() =>
-      Alert.alert("YouTube Required", `Install YouTube on your Apple TV to watch "${title}".`, [{ text: "OK" }])
-    );
+    try {
+      const supported = await Linking.canOpenURL(url);
+      console.log("[Linking.canOpenURL]", { url, supported });
+      const result = await Linking.openURL(url);
+      console.log("[Linking.openURL success]", { url, result });
+    } catch (err) {
+      console.log("[Linking.openURL error]", { url, err });
+      Alert.alert(
+        "YouTube Required",
+        `Install YouTube on your Apple TV to watch "${title}".`,
+        [{ text: "OK" }]
+      );
+    }
   }, []);
 
   const baseItem = getItem(id ?? "");
