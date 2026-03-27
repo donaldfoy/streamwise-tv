@@ -181,6 +181,20 @@ function CastCard({ member }: { member: CastMember }) {
   );
 }
 
+// ─── Trailer helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Derives the YouTube watch URL from a TMDB video key.
+ * This is the only trailer destination available — there are no direct
+ * MP4 or HLS URLs anywhere in the TMDB video response.
+ *
+ * @param key  video.key from TMDB Videos API, e.g. "dQw4w9WgXcQ"
+ * @returns    https://www.youtube.com/watch?v=<key>
+ */
+function youtubeWatchUrl(key: string): string {
+  return `https://www.youtube.com/watch?v=${key}`;
+}
+
 // ─── Video Tile ───────────────────────────────────────────────────────────────
 
 function VideoTile({ video, onPlay }: { video: Video; onPlay: (key: string, title: string) => void }) {
@@ -198,8 +212,9 @@ function VideoTile({ video, onPlay }: { video: Video; onPlay: (key: string, titl
   }, [scale]);
 
   const handlePress = useCallback(() => {
+    console.log("[TrailerPress]", { key: video.key, name: video.name, site: video.site, type: video.type });
     onPlay(video.key, video.name);
-  }, [video.key, video.name, onPlay]);
+  }, [video.key, video.name, video.site, video.type, onPlay]);
 
   return (
     <Animated.View style={[styles.videoTileOuter, { transform: [{ scale }] }]}>
@@ -311,7 +326,8 @@ export default function DetailScreen() {
   const [detail, setDetail] = useState<DetailItem | null>(null);
   const [loading, setLoading] = useState(false);
   const playVideo = useCallback((key: string, title: string) => {
-    const url = `https://www.youtube.com/watch?v=${key}`;
+    const url = youtubeWatchUrl(key);
+    console.log("[TrailerDestination]", { key, url });
     Linking.openURL(url).catch(() =>
       Alert.alert("YouTube Required", `Install YouTube on your Apple TV to watch "${title}".`, [{ text: "OK" }])
     );
