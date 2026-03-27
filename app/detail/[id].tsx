@@ -12,7 +12,6 @@ import {
   useWindowDimensions,
   ActivityIndicator,
 } from "react-native";
-import VideoPlayerModal from "@/components/VideoPlayerModal";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
@@ -311,11 +310,13 @@ export default function DetailScreen() {
   const { width, height } = useWindowDimensions();
   const [detail, setDetail] = useState<DetailItem | null>(null);
   const [loading, setLoading] = useState(false);
-  const [activeVideo, setActiveVideo] = useState<{ key: string; title: string } | null>(null);
   const playVideo = useCallback((key: string, title: string) => {
-    setActiveVideo({ key, title });
+    Linking.openURL(`vnd.youtube:${key}`).catch(() =>
+      Linking.openURL(`youtube://watch?v=${key}`).catch(() =>
+        Alert.alert("YouTube Required", `Install YouTube on your Apple TV to watch "${title}".`, [{ text: "OK" }])
+      )
+    );
   }, []);
-  const closeVideo = useCallback(() => setActiveVideo(null), []);
 
   const baseItem = getItem(id ?? "");
   const inList = baseItem ? isInWatchlist(baseItem.id) : false;
@@ -743,11 +744,6 @@ export default function DetailScreen() {
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      <VideoPlayerModal
-        videoKey={activeVideo?.key ?? null}
-        videoTitle={activeVideo?.title}
-        onClose={closeVideo}
-      />
     </View>
   );
 }
