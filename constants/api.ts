@@ -4,8 +4,8 @@ const API_BASE = "https://streamwise.live/api";
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const IMG_BASE = "https://image.tmdb.org/t/p";
 
-// TMDB API key — set EXPO_PUBLIC_TMDB_API_KEY in your .env file
-const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY ?? "";
+// TMDB API key — override via EXPO_PUBLIC_TMDB_API_KEY in .env
+const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_API_KEY || "c5b10218ea28443de74891440802ed69";
 
 export function posterUrl(path: string | null | undefined, size: "w300" | "w500" | "original" = "w500"): string {
   if (!path) return "";
@@ -62,7 +62,6 @@ export async function fetchSearch(query: string): Promise<ContentItem[]> {
 }
 
 export async function fetchDetail(mediaType: "movie" | "tv", id: number | string): Promise<any> {
-  if (!TMDB_KEY) throw new Error("EXPO_PUBLIC_TMDB_API_KEY not set");
   const url = new URL(`${TMDB_BASE}/${mediaType}/${id}`);
   url.searchParams.set("api_key", TMDB_KEY);
   url.searchParams.set("append_to_response", "credits,videos,watch/providers,recommendations,similar");
