@@ -1,0 +1,36 @@
+{
+  "cli": {
+    "version": ">= 14.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": {
+        "buildConfiguration": "Release"
+      }
+    },
+    "production": {
+      "distribution": "store",
+      "ios": {
+        "buildConfiguration": "Release"
+      }
+    },
+    "tvos-production": {
+      "distribution": "store",
+      "env": {
+        "EXPO_TV": "1"
+      },
+      "ios": {
+        "simulator": false
+      }
+    }
+  }
+}
