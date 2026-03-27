@@ -82,7 +82,7 @@ function SearchCard({
             transition={250}
           />
           <LinearGradient
-            colors={["transparent", "rgba(10,10,15,0.95)"]}
+            colors={["rgba(10,10,15,0)", "rgba(10,10,15,0.95)"]}
             style={styles.cardGradient}
             start={{ x: 0, y: 0.4 }}
             end={{ x: 0, y: 1 }}
