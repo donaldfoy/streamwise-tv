@@ -32,7 +32,7 @@ type TVCardProps = {
   hasTVPreferredFocus?: boolean;
   cardRef?: React.RefObject<View>;
   style?: ViewStyle;
-  nextFocusUp?: number;
+  onFocusCallback?: () => void;
 };
 
 export function TVCard({
@@ -42,7 +42,7 @@ export function TVCard({
   hasTVPreferredFocus,
   cardRef,
   style,
-  nextFocusUp,
+  onFocusCallback,
 }: TVCardProps) {
   const [isFocused, setIsFocused] = useState(false);
   const scale = useRef(new Animated.Value(1)).current;
@@ -54,6 +54,7 @@ export function TVCard({
 
   const handleFocus = useCallback(() => {
     setIsFocused(true);
+    onFocusCallback?.();
     Animated.parallel([
       Animated.spring(scale, {
         toValue: 1.12,
@@ -67,7 +68,7 @@ export function TVCard({
         useNativeDriver: true,
       }),
     ]).start();
-  }, [scale, glowOpacity]);
+  }, [scale, glowOpacity, onFocusCallback]);
 
   const handleBlur = useCallback(() => {
     setIsFocused(false);
@@ -119,7 +120,6 @@ export function TVCard({
         onPressOut={handlePressOut}
         onPress={() => onPress?.(item)}
         hasTVPreferredFocus={hasTVPreferredFocus}
-        nextFocusUp={nextFocusUp}
         style={[
           styles.card,
           { width, height },
