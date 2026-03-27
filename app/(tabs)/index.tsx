@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   View,
   ScrollView,
@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Text,
   Platform,
+  findNodeHandle,
 } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
@@ -30,6 +31,14 @@ import {
   getHiddenGems,
 } from "@/constants/rails";
 import type { ContentItem } from "@/constants/types";
+import type { CardSize } from "@/components/TVCard";
+
+type RowDef = {
+  key: string;
+  title: string;
+  items: ContentItem[];
+  cardSize: CardSize;
+};
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -51,7 +60,6 @@ export default function HomeScreen() {
   const isLoading = trending.isLoading && movies.isLoading && tvShows.isLoading;
   const isError = trending.isError && movies.isError && tvShows.isError;
 
-  // Combine and dedupe all content for rail filtering
   const allContent = useMemo(() => {
     const combined = [
       ...(trending.data ?? []),
@@ -66,27 +74,62 @@ export default function HomeScreen() {
     });
   }, [trending.data, movies.data, tvShows.data]);
 
-  // Compute all personalised rails
-  const suggestedForYou = useMemo(
-    () => getSuggestedForYou(allContent, watchlist),
-    [allContent, watchlist]
-  );
-
-  const becauseYouWatched = useMemo(
-    () => getBecauseYouWatched(allContent, watchlist),
-    [allContent, watchlist]
-  );
-
-  const streamingForYou = useMemo(
-    () => getStreamingForYou(allContent, subscribedProviderIds),
-    [allContent, subscribedProviderIds]
-  );
-
+  const suggestedForYou = useMemo(() => getSuggestedForYou(allContent, watchlist), [allContent, watchlist]);
+  const becauseYouWatched = useMemo(() => getBecauseYouWatched(allContent, watchlist), [allContent, watchlist]);
+  const streamingForYou = useMemo(() => getStreamingForYou(allContent, subscribedProviderIds), [allContent, subscribedProviderIds]);
   const justAdded = useMemo(() => getJustAdded(allContent), [allContent]);
   const newReleases = useMemo(() => getNewReleases(allContent), [allContent]);
   const popularMovies = useMemo(() => getPopularMovies(allContent), [allContent]);
   const topRatedTV = useMemo(() => getTopRatedTV(allContent), [allContent]);
   const hiddenGems = useMemo(() => getHiddenGems(allContent), [allContent]);
+
+  const trendingData = trending.data ?? [];
+  const moviesData = movies.data ?? [];
+  const tvData = tvShows.data ?? [];
+
+  /**
+   * Flat ordered list of visible rows. Computed at render time so row
+   * indices are always correct regardless of which rails have data.
+   */
+  const rows = useMemo((): RowDef[] => {
+    const r: RowDef[] = [];
+    if (trendingData.length > 0)    r.push({ key: "trending",   title: "Trending Now",       items: trendingData,              cardSize: "lg" });
+    if (suggestedForYou.length > 0) r.push({ key: "suggested",  title: "Suggested for You",  items: suggestedForYou,           cardSize: "md" });
+    if (becauseYouWatched)          r.push({ key: "because",    title: becauseYouWatched.label, items: becauseYouWatched.results, cardSize: "md" });
+    if (streamingForYou.length > 0) r.push({ key: "streaming",  title: "Streaming for You",  items: streamingForYou,           cardSize: "md" });
+    if (justAdded.length > 0)       r.push({ key: "justadded",  title: "Just Added",          items: justAdded,                 cardSize: "md" });
+    if (newReleases.length > 0)     r.push({ key: "newrel",     title: "New Releases",        items: newReleases,               cardSize: "md" });
+    if (moviesData.length > 0)      r.push({ key: "movies",     title: "Movies",              items: moviesData,                cardSize: "md" });
+    if (tvData.length > 0)          r.push({ key: "tv",         title: "TV Shows",            items: tvData,                    cardSize: "md" });
+    if (popularMovies.length > 0)   r.push({ key: "popular",    title: "Popular Movies",      items: popularMovies,             cardSize: "md" });
+    if (topRatedTV.length > 0)      r.push({ key: "toprated",   title: "Top Rated TV",        items: topRatedTV,                cardSize: "md" });
+    if (hiddenGems.length > 0)      r.push({ key: "hiddengems", title: "Hidden Gems",         items: hiddenGems,                cardSize: "sm" });
+    return r;
+  }, [trendingData, suggestedForYou, becauseYouWatched, streamingForYou, justAdded, newReleases, moviesData, tvData, popularMovies, topRatedTV, hiddenGems]);
+
+  /**
+   * Map from row key → node handle of that row's last card.
+   * Populated after each row mounts (ContentRow calls onLastCardMount).
+   * Used to set nextFocusUp on tail cards in the row immediately below.
+   */
+  const [rowLastHandles, setRowLastHandles] = useState<Map<string, number>>(new Map());
+
+  const handleLastCardMount = useCallback(
+    (rowKey: string) => (ref: React.RefObject<View>) => {
+      // requestAnimationFrame ensures the native view is fully committed
+      requestAnimationFrame(() => {
+        const handle = findNodeHandle(ref.current);
+        if (handle != null) {
+          setRowLastHandles((prev) => {
+            const next = new Map(prev);
+            next.set(rowKey, handle);
+            return next;
+          });
+        }
+      });
+    },
+    []
+  );
 
   if (isLoading) {
     return (
@@ -107,9 +150,6 @@ export default function HomeScreen() {
     );
   }
 
-  const trendingData = trending.data ?? [];
-  const moviesData = movies.data ?? [];
-  const tvData = tvShows.data ?? [];
   const featured = trendingData[0];
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
@@ -131,115 +171,21 @@ export default function HomeScreen() {
         )}
 
         <View style={styles.rows}>
-          {/* 1. Trending Now */}
-          {trendingData.length > 0 && (
-            <ContentRow
-              title="Trending Now"
-              items={trendingData}
-              cardSize="lg"
-              onCardPress={handleCardPress}
-            />
-          )}
-
-          {/* 2. Suggested for You — watchlist-driven */}
-          {suggestedForYou.length > 0 && (
-            <ContentRow
-              title="Suggested for You"
-              items={suggestedForYou}
-              cardSize="md"
-              onCardPress={handleCardPress}
-            />
-          )}
-
-          {/* 3. Because You Watched X */}
-          {becauseYouWatched && (
-            <ContentRow
-              title={becauseYouWatched.label}
-              items={becauseYouWatched.results}
-              cardSize="md"
-              onCardPress={handleCardPress}
-            />
-          )}
-
-          {/* 4. Streaming for You — provider-filtered */}
-          {streamingForYou.length > 0 && (
-            <ContentRow
-              title="Streaming for You"
-              items={streamingForYou}
-              cardSize="md"
-              onCardPress={handleCardPress}
-            />
-          )}
-
-          {/* 5. Just Added */}
-          {justAdded.length > 0 && (
-            <ContentRow
-              title="Just Added"
-              items={justAdded}
-              cardSize="md"
-              onCardPress={handleCardPress}
-            />
-          )}
-
-          {/* 6. New Releases */}
-          {newReleases.length > 0 && (
-            <ContentRow
-              title="New Releases"
-              items={newReleases}
-              cardSize="md"
-              onCardPress={handleCardPress}
-            />
-          )}
-
-          {/* 7. Movies rail */}
-          {moviesData.length > 0 && (
-            <ContentRow
-              title="Movies"
-              items={moviesData}
-              cardSize="md"
-              onCardPress={handleCardPress}
-            />
-          )}
-
-          {/* 8. TV Shows rail */}
-          {tvData.length > 0 && (
-            <ContentRow
-              title="TV Shows"
-              items={tvData}
-              cardSize="md"
-              onCardPress={handleCardPress}
-            />
-          )}
-
-          {/* 9. Popular Movies */}
-          {popularMovies.length > 0 && (
-            <ContentRow
-              title="Popular Movies"
-              items={popularMovies}
-              cardSize="md"
-              onCardPress={handleCardPress}
-            />
-          )}
-
-          {/* 10. Top Rated TV */}
-          {topRatedTV.length > 0 && (
-            <ContentRow
-              title="Top Rated TV"
-              items={topRatedTV}
-              cardSize="md"
-              onCardPress={handleCardPress}
-            />
-          )}
-
-          {/* 11. Hidden Gems */}
-          {hiddenGems.length > 0 && (
-            <ContentRow
-              title="Hidden Gems"
-              items={hiddenGems}
-              cardSize="sm"
-              onCardPress={handleCardPress}
-            />
-          )}
+          {rows.map((row, rowIndex) => {
+            const rowAbove = rowIndex > 0 ? rows[rowIndex - 1] : null;
+            return (
+              <ContentRow
+                key={row.key}
+                title={row.title}
+                items={row.items}
+                cardSize={row.cardSize}
+                onCardPress={handleCardPress}
+                onLastCardMount={handleLastCardMount(row.key)}
+                nextFocusUpHandle={rowAbove ? rowLastHandles.get(rowAbove.key) : undefined}
+                rowAboveCardCount={rowAbove?.items.length}
+              />
+            );
+          })}
         </View>
       </ScrollView>
     </TVFocusGuideWrapper>
