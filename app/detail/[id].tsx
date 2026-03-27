@@ -311,11 +311,9 @@ export default function DetailScreen() {
   const [detail, setDetail] = useState<DetailItem | null>(null);
   const [loading, setLoading] = useState(false);
   const playVideo = useCallback((key: string, title: string) => {
-    // tvOS has no browser — use YouTube app scheme; fall back with a helpful message
-    const youtubeApp = `vnd.youtube://${key}`;
-    Linking.openURL(youtubeApp).catch(() => {
-      const fallback = `youtube://watch?v=${key}`;
-      Linking.openURL(fallback).catch(() => {
+    // vnd.youtube:VIDEO_ID is the correct deep-link that opens the specific video
+    Linking.openURL(`vnd.youtube:${key}`).catch(() => {
+      Linking.openURL(`youtube://watch?v=${key}`).catch(() => {
         Alert.alert(
           "YouTube Required",
           `Install the YouTube app on your Apple TV to watch "${title}".`,
