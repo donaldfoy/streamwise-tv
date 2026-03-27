@@ -45,7 +45,7 @@ export default function HomeScreen() {
   useEffect(() => { if (tvShows.data) storeItems(tvShows.data); }, [tvShows.data]);
 
   const handleCardPress = (item: ContentItem) => {
-    router.push({ pathname: "/detail/[id]", params: { id: String(item.id) } });
+    router.push({ pathname: "/detail/[id]", params: { id: String(item.id), type: item.media_type } });
   };
 
   const isLoading = trending.isLoading && movies.isLoading && tvShows.isLoading;
