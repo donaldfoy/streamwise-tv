@@ -185,11 +185,7 @@ const styles = StyleSheet.create({
     top: -12,
     left: -12,
     borderRadius: 20,
-    shadowColor: Colors.focusRing,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 28,
-    elevation: 20,
+    backgroundColor: "rgba(99,102,241,0.35)",
   },
   card: {
     borderRadius: 12,
