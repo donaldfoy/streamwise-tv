@@ -12,15 +12,20 @@ type ContentRowProps = {
   onCardPress?: (item: ContentItem) => void;
   firstItemFocused?: boolean;
   /**
-   * Called after mount with all card refs for this row (index-stable,
-   * non-null at call time). Parent stores these for programmatic focus.
+   * Called once after mount with the stable ref array for every card
+   * in this row (all refs are non-null at call time). Parent stores
+   * them to compute nextFocusUp/Down handles for adjacent rows.
    */
   onRefsReady?: (refs: React.RefObject<View>[]) => void;
   /**
-   * Called whenever a card in this row receives focus,
-   * reporting its item index. Parent uses this to track current position.
+   * nextFocusUp node handle per card index. Tells tvOS native focus
+   * engine exactly where to go on Up press — no heuristics involved.
    */
-  onCardFocus?: (itemIndex: number) => void;
+  cardUpHandles?: (number | undefined)[];
+  /**
+   * nextFocusDown node handle per card index. Same as above for Down.
+   */
+  cardDownHandles?: (number | undefined)[];
 };
 
 export function ContentRow({
@@ -30,13 +35,13 @@ export function ContentRow({
   onCardPress,
   firstItemFocused = false,
   onRefsReady,
-  onCardFocus,
+  cardUpHandles,
+  cardDownHandles,
 }: ContentRowProps) {
   /**
-   * Stable container so refs survive re-renders without being recreated.
-   * We grow the array as items arrive; we never shrink it (stale refs are
-   * harmless — the event handler clamps to the live item count via
-   * rowCardRefsMap which is updated on every mount).
+   * Grow-only stable ref container — refs are never recreated across
+   * re-renders, only appended. This is safe because item order is stable
+   * once TMDB data loads.
    */
   const refsContainer = useRef<React.RefObject<View>[]>([]);
   while (refsContainer.current.length < items.length) {
@@ -48,8 +53,6 @@ export function ContentRow({
     if (onRefsReady && items.length > 0) {
       onRefsReady(cardRefs);
     }
-  // cardRefs identity changes each render (slice) but the ref objects inside
-  // are stable. We only need to call onRefsReady once after mount.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -79,7 +82,8 @@ export function ContentRow({
             onPress={onCardPress}
             hasTVPreferredFocus={firstItemFocused && index === 0}
             cardRef={cardRefs[index]}
-            onFocusCallback={() => onCardFocus?.(index)}
+            nextFocusUp={cardUpHandles?.[index]}
+            nextFocusDown={cardDownHandles?.[index]}
           />
         ))}
       </ScrollView>
