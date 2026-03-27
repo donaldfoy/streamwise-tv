@@ -14,6 +14,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { WatchlistProvider } from "@/hooks/useWatchlist";
+import { SubscriptionsProvider } from "@/hooks/useSubscriptions";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -47,6 +48,7 @@ export default function RootLayout() {
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <WatchlistProvider>
+            <SubscriptionsProvider>
             <View style={{ flex: 1 }}>
               <StatusBar style="light" />
               <Stack screenOptions={{ headerShown: false, animation: "fade" }}>
@@ -57,6 +59,7 @@ export default function RootLayout() {
                 />
               </Stack>
             </View>
+            </SubscriptionsProvider>
           </WatchlistProvider>
         </QueryClientProvider>
       </ErrorBoundary>
