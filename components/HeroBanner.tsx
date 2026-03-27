@@ -115,7 +115,7 @@ export function HeroBanner({
 
       {/* Gradient overlays */}
       <LinearGradient
-        colors={["transparent", "rgba(10,10,15,0.45)", "rgba(10,10,15,0.88)", Colors.background]}
+        colors={["rgba(10,10,15,0)", "rgba(10,10,15,0.45)", "rgba(10,10,15,0.88)", Colors.background]}
         style={styles.fadeBottom}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
