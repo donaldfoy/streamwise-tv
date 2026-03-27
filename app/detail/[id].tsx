@@ -169,7 +169,7 @@ function CastCard({ member }: { member: CastMember }) {
           />
         ) : (
           <View style={[styles.castPhoto, styles.castPhotoPlaceholder]}>
-            <Feather name="user" size={30} color={Colors.textMuted} />
+            <Feather name="user" size={30} color={Colors.textSecondary} />
           </View>
         )}
         <View style={styles.castInfo}>
@@ -326,7 +326,7 @@ export default function DetailScreen() {
     setLoading(true);
     fetchDetail(baseItem.media_type, id)
       .then((data: DetailItem) => setDetail({ ...data, media_type: baseItem.media_type, streaming: baseItem.streaming }))
-      .catch(() => {})
+      .catch((err: unknown) => console.error("[Detail] TMDB fetch failed:", err))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -766,7 +766,7 @@ const styles = StyleSheet.create({
   statusBadgeText: { fontFamily: "Inter_500Medium", fontSize: 11, color: Colors.textSecondary },
 
   title: { fontFamily: "Inter_700Bold", fontSize: 48, lineHeight: 56, letterSpacing: -1, color: Colors.text },
-  tagline: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 22, color: Colors.textMuted, fontStyle: "italic" },
+  tagline: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 22, color: Colors.textSecondary, fontStyle: "italic" },
 
   statsRow: { flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" },
   statPill: { flexDirection: "row", alignItems: "center", gap: 6 },
@@ -815,7 +815,7 @@ const styles = StyleSheet.create({
   actionBtnLabelPrimary: { color: "#fff" },
 
   loadingRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12 },
-  loadingText: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.textMuted },
+  loadingText: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.textSecondary },
 
   section: { gap: 20, marginTop: 36 },
   sectionLabel: { flexDirection: "row", alignItems: "center", gap: 10 },
@@ -883,7 +883,7 @@ const styles = StyleSheet.create({
   castPhotoPlaceholder: { backgroundColor: Colors.surfaceElevated, alignItems: "center", justifyContent: "center" },
   castInfo: { gap: 2, alignItems: "center" },
   castName: { fontFamily: "Inter_600SemiBold", fontSize: 12, color: Colors.text, textAlign: "center" },
-  castCharacter: { fontFamily: "Inter_400Regular", fontSize: 11, color: Colors.textMuted, textAlign: "center" },
+  castCharacter: { fontFamily: "Inter_400Regular", fontSize: 11, color: Colors.textSecondary, textAlign: "center" },
 
   // Info grid
   infoGrid: { gap: 0, backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 14, overflow: "hidden" },
