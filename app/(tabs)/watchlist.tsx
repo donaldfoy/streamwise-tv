@@ -44,7 +44,7 @@ function RemoveButton({ onPress }: { onPress: () => void }) {
         onPress={onPress}
         style={[styles.removeBtn, focused && styles.removeBtnFocused]}
       >
-        <Feather name="trash-2" size={20} color={focused ? "#fff" : Colors.accentRed} />
+        <Feather name="trash-2" size={40} color={focused ? "#fff" : Colors.accentRed} />
       </Pressable>
     </Animated.View>
   );
@@ -150,7 +150,7 @@ function WatchlistItem({
                 </Text>
               </View>
               <View style={styles.ratingRow}>
-                <Feather name="star" size={13} color={Colors.accent} />
+                <Feather name="star" size={26} color={Colors.accent} />
                 <Text style={styles.ratingText}>{formatVoteAverage(item.vote_average)}</Text>
               </View>
               <Text style={styles.yearText}>{releaseYear(item.release_date)}</Text>
@@ -181,7 +181,7 @@ function WatchlistItem({
           {/* Chevron */}
           <Feather
             name="chevron-right"
-            size={22}
+            size={44}
             color={focused ? Colors.text : Colors.textSecondary}
           />
         </Pressable>
@@ -252,7 +252,7 @@ export default function WatchlistScreen() {
           )}
         </View>
         <View style={styles.headerIcon}>
-          <Feather name="bookmark" size={22} color={Colors.tint} />
+          <Feather name="bookmark" size={44} color={Colors.tint} />
         </View>
       </View>
 
@@ -260,7 +260,7 @@ export default function WatchlistScreen() {
       {watchlist.length === 0 ? (
         <View style={styles.emptyState}>
           <View style={styles.emptyIconRing}>
-            <Feather name="bookmark" size={52} color={Colors.tint} />
+            <Feather name="bookmark" size={104} color={Colors.tint} />
           </View>
           <Text style={styles.emptyTitle}>Your Watchlist is Empty</Text>
           <Text style={styles.emptyBody}>
@@ -283,7 +283,7 @@ export default function WatchlistScreen() {
                 hasTVPreferredFocus={index === 0 && section.title === sections[0]?.title}
               />
             )}
-            contentContainerStyle={{ paddingBottom: bottomPad + 80, paddingHorizontal: 64 }}
+            contentContainerStyle={{ paddingBottom: bottomPad + 160, paddingHorizontal: 128 }}
             showsVerticalScrollIndicator={false}
             stickySectionHeadersEnabled={false}
             ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -304,33 +304,33 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    paddingHorizontal: 64,
-    paddingTop: 14,
-    paddingBottom: 28,
+    paddingHorizontal: 128,
+    paddingTop: 28,
+    paddingBottom: 56,
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
   },
   headerTitle: {
     fontFamily: "Inter_700Bold",
-    fontSize: 52,
-    letterSpacing: -1,
+    fontSize: 80,
+    letterSpacing: -2,
     color: Colors.text,
   },
   headerCount: {
     fontFamily: "Inter_400Regular",
-    fontSize: 18,
+    fontSize: 36,
     color: Colors.textSecondary,
-    marginTop: 4,
+    marginTop: 8,
   },
   headerIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 112,
+    height: 112,
+    borderRadius: 56,
     backgroundColor: Colors.surfaceElevated,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: Colors.tint + "40",
   },
 
@@ -339,62 +339,62 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 18,
+    gap: 36,
     paddingBottom: 80,
   },
   emptyIconRing: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
     backgroundColor: Colors.surfaceElevated,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: Colors.tint + "30",
   },
   emptyTitle: {
     fontFamily: "Inter_600SemiBold",
-    fontSize: 28,
+    fontSize: 56,
     color: Colors.text,
   },
   emptyBody: {
     fontFamily: "Inter_400Regular",
-    fontSize: 18,
+    fontSize: 36,
     color: Colors.textSecondary,
     textAlign: "center",
-    maxWidth: 500,
+    maxWidth: 1000,
   },
 
   // Section header
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingTop: 32,
-    paddingBottom: 16,
+    gap: 24,
+    paddingTop: 48,
+    paddingBottom: 24,
   },
   sectionTitle: {
     fontFamily: "Inter_700Bold",
-    fontSize: 22,
+    fontSize: 44,
     color: Colors.text,
     flexShrink: 0,
   },
   sectionCountBadge: {
     backgroundColor: Colors.surfaceElevated,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 6,
     borderWidth: 1,
     borderColor: Colors.border,
   },
   sectionCount: {
     fontFamily: "Inter_600SemiBold",
-    fontSize: 13,
+    fontSize: 26,
     color: Colors.textSecondary,
   },
   sectionLine: {
     flex: 1,
-    height: 1,
+    height: 2,
     backgroundColor: Colors.border,
   },
 
@@ -405,22 +405,22 @@ const styles = StyleSheet.create({
   rowContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    borderRadius: 14,
+    gap: 24,
+    borderRadius: 28,
     overflow: "hidden",
   },
   rowHighlight: {
     backgroundColor: Colors.surfaceElevated,
-    borderRadius: 14,
+    borderRadius: 28,
   },
   rowPressable: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 20,
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: 2,
+    gap: 40,
+    padding: 32,
+    borderRadius: 28,
+    borderWidth: 3,
     borderColor: "transparent",
   },
   rowPressableFocused: {
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
     shadowColor: Colors.focusRing,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.35,
-    shadowRadius: 10,
+    shadowRadius: 20,
   },
 
   // Poster
@@ -437,103 +437,103 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   poster: {
-    width: 90,
-    height: 135,
+    width: 180,
+    height: 270,
   },
   streamingDot: {
     position: "absolute",
-    top: 6,
-    right: 6,
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
+    top: 12,
+    right: 12,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: Colors.accentGreen,
-    borderWidth: 1.5,
+    borderWidth: 3,
     borderColor: Colors.background,
   },
 
   // Info column
   info: {
     flex: 1,
-    gap: 8,
+    gap: 16,
   },
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 20,
     flexWrap: "wrap",
   },
   typeBadge: {
-    borderRadius: 5,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
   },
   typeText: {
     fontFamily: "Inter_700Bold",
-    fontSize: 10,
+    fontSize: 20,
     letterSpacing: 0.8,
   },
   ratingRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 8,
   },
   ratingText: {
     fontFamily: "Inter_700Bold",
-    fontSize: 14,
+    fontSize: 28,
     color: Colors.accent,
   },
   yearText: {
     fontFamily: "Inter_400Regular",
-    fontSize: 14,
+    fontSize: 28,
     color: Colors.textSecondary,
   },
   streamingBadge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 10,
   },
   streamingBadgeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
     backgroundColor: Colors.accentGreen,
   },
   streamingBadgeText: {
     fontFamily: "Inter_500Medium",
-    fontSize: 12,
+    fontSize: 24,
     color: Colors.accentGreen,
   },
   title: {
     fontFamily: "Inter_700Bold",
-    fontSize: 20,
-    lineHeight: 26,
+    fontSize: 40,
+    lineHeight: 52,
     color: Colors.text,
   },
   genreText: {
     fontFamily: "Inter_500Medium",
-    fontSize: 13,
+    fontSize: 26,
     color: Colors.tint,
     letterSpacing: 0.2,
   },
   overview: {
     fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 28,
+    lineHeight: 40,
     color: Colors.textSecondary,
   },
 
   // Remove button
   removeBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 12,
+    width: 104,
+    height: 104,
+    borderRadius: 24,
     backgroundColor: Colors.surfaceElevated,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
     borderColor: Colors.border,
-    marginRight: 4,
+    marginRight: 8,
     flexShrink: 0,
   },
   removeBtnFocused: {
@@ -542,10 +542,10 @@ const styles = StyleSheet.create({
     shadowColor: Colors.accentRed,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
-    shadowRadius: 10,
+    shadowRadius: 20,
   },
 
   separator: {
-    height: 8,
+    height: 16,
   },
 });
