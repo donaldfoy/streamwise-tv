@@ -20,7 +20,17 @@ export function ContentRow({
   onCardPress,
   firstItemFocused = false,
 }: ContentRowProps) {
-  const firstCardRef = useRef<View>(null);
+  /**
+   * Stable ref array — one ref per card position.
+   * Grows as items grow; never shrinks so existing refs stay stable.
+   * Avoids calling useRef in a loop (hooks rules) by storing refs
+   * inside a single ref-of-array container.
+   */
+  const cardRefsContainer = useRef<React.RefObject<View>[]>([]);
+  while (cardRefsContainer.current.length < items.length) {
+    cardRefsContainer.current.push(React.createRef<View>());
+  }
+  const cardRefs = cardRefsContainer.current.slice(0, items.length);
 
   if (!items.length) return null;
 
@@ -33,8 +43,22 @@ export function ContentRow({
       trapFocusRight={false}
     >
       <Text style={styles.sectionTitle}>{title}</Text>
+      {/*
+       * destinations = ALL card refs for this row.
+       *
+       * Why: when focus enters this row's guide area from any direction
+       * (including Up from a longer row below), the tvOS spatial engine
+       * picks the nearest ref from this list. That gives us the
+       * "clamp to nearest available card" behavior for free — no custom
+       * key-handler logic needed.
+       *
+       * Before this fix, destinations was only [cardRefs[0]] when
+       * firstItemFocused=true, meaning all other entry points had no
+       * candidates and focus got stuck when pressing Up from a card whose
+       * column index exceeded this row's card count.
+       */}
       <TVFocusGuideWrapper
-        destinations={firstItemFocused ? [firstCardRef] : undefined}
+        destinations={cardRefs}
         trapFocusUp={false}
         trapFocusDown={false}
       >
@@ -52,7 +76,7 @@ export function ContentRow({
               size={cardSize}
               onPress={onCardPress}
               hasTVPreferredFocus={firstItemFocused && index === 0}
-              cardRef={index === 0 ? firstCardRef : undefined}
+              cardRef={cardRefs[index]}
             />
           ))}
         </ScrollView>
