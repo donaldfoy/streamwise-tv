@@ -32,6 +32,22 @@ export async function fetchTrending(): Promise<ContentItem[]> {
   return res.json();
 }
 
+export async function fetchMovies(): Promise<ContentItem[]> {
+  const res = await fetch(`${API_BASE}/movies`);
+  if (!res.ok) throw new Error("Failed to fetch movies");
+  const data: { results?: ContentItem[] } | ContentItem[] = await res.json();
+  if (Array.isArray(data)) return data;
+  return (data as { results?: ContentItem[] }).results ?? [];
+}
+
+export async function fetchTV(): Promise<ContentItem[]> {
+  const res = await fetch(`${API_BASE}/tv`);
+  if (!res.ok) throw new Error("Failed to fetch TV shows");
+  const data: { results?: ContentItem[] } | ContentItem[] = await res.json();
+  if (Array.isArray(data)) return data;
+  return (data as { results?: ContentItem[] }).results ?? [];
+}
+
 export async function fetchSearch(query: string): Promise<ContentItem[]> {
   if (!query.trim()) return [];
   const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}`);
