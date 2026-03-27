@@ -6,9 +6,11 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
-const STORAGE_KEY = "@streamwise_subscriptions";
+import {
+  getSelectedServices,
+  setSelectedServices,
+  STREAMING_SERVICES,
+} from "@/lib/streaming-services";
 
 type SubscriptionsContextType = {
   subscribedProviderIds: number[];
@@ -23,18 +25,12 @@ export function SubscriptionsProvider({ children }: { children: ReactNode }) {
   const [subscribedProviderIds, setSubscribedProviderIds] = useState<number[]>([]);
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
-      if (raw) {
-        try {
-          setSubscribedProviderIds(JSON.parse(raw));
-        } catch {}
-      }
-    });
+    getSelectedServices().then(setSubscribedProviderIds);
   }, []);
 
   const persist = useCallback((ids: number[]) => {
     setSubscribedProviderIds(ids);
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+    setSelectedServices(ids);
   }, []);
 
   const isSubscribed = useCallback(
@@ -44,11 +40,10 @@ export function SubscriptionsProvider({ children }: { children: ReactNode }) {
 
   const toggleSubscription = useCallback(
     (providerId: number) => {
-      if (isSubscribed(providerId)) {
-        persist(subscribedProviderIds.filter((id) => id !== providerId));
-      } else {
-        persist([...subscribedProviderIds, providerId]);
-      }
+      const next = isSubscribed(providerId)
+        ? subscribedProviderIds.filter((id) => id !== providerId)
+        : [...subscribedProviderIds, providerId];
+      persist(next);
     },
     [subscribedProviderIds, isSubscribed, persist]
   );
