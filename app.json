@@ -19,7 +19,22 @@
       "requireFullScreen": true,
       "infoPlist": {
         "UIRequiresFullScreen": true,
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "LSApplicationQueriesSchemes": [
+          "nflx",
+          "aiv",
+          "hulu",
+          "disneyplus",
+          "hbomax",
+          "max",
+          "peacocktv",
+          "paramountplus",
+          "videos",
+          "appletvplus",
+          "crunchyroll",
+          "starz",
+          "fubo"
+        ]
       }
     },
     "web": {
