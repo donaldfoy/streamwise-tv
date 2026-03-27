@@ -561,37 +561,37 @@ export default function DetailScreen() {
                   )}
                 </View>
               )}
+
+              {/* Action buttons — inside info col so they anchor to the text */}
+              <TVFocusGuideWrapper style={styles.actionsRow}>
+                <FocusButton
+                  icon="play"
+                  label="Play Now"
+                  variant="primary"
+                  hasTVPreferredFocus
+                  onPress={() =>
+                    Alert.alert("Starting Playback", `Now playing: ${displayTitle}`, [{ text: "OK" }])
+                  }
+                />
+                <FocusButton
+                  icon={inList ? "bookmark" : "bookmark"}
+                  label={inList ? "In My List" : "+ My List"}
+                  variant="secondary"
+                  active={inList}
+                  onPress={() => baseItem && toggleWatchlist(baseItem)}
+                />
+                {trailers.length > 0 && (
+                  <FocusButton
+                    icon="film"
+                    label="Watch Trailer"
+                    variant="secondary"
+                    color={Colors.accentRed}
+                    onPress={() => playVideo(trailers[0].key, trailers[0].name)}
+                  />
+                )}
+              </TVFocusGuideWrapper>
             </View>
           </View>
-
-          {/* Action buttons */}
-          <TVFocusGuideWrapper style={styles.actionsRow}>
-            <FocusButton
-              icon="play"
-              label="Play Now"
-              variant="primary"
-              hasTVPreferredFocus
-              onPress={() =>
-                Alert.alert("Starting Playback", `Now playing: ${displayTitle}`, [{ text: "OK" }])
-              }
-            />
-            <FocusButton
-              icon={inList ? "bookmark" : "bookmark"}
-              label={inList ? "In My List" : "+ My List"}
-              variant="secondary"
-              active={inList}
-              onPress={() => baseItem && toggleWatchlist(baseItem)}
-            />
-            {trailers.length > 0 && (
-              <FocusButton
-                icon="film"
-                label="Watch Trailer"
-                variant="secondary"
-                color={Colors.accentRed}
-                onPress={() => playVideo(trailers[0].key, trailers[0].name)}
-              />
-            )}
-          </TVFocusGuideWrapper>
         </View>
 
         {/* Loading indicator for detail data */}
@@ -763,99 +763,106 @@ const styles = StyleSheet.create({
   notFoundTitle: { fontFamily: "Inter_600SemiBold", fontSize: 28, color: Colors.text },
   notFoundBody: { fontFamily: "Inter_400Regular", fontSize: 18, color: Colors.textSecondary },
 
-  gradientLeft: { ...StyleSheet.absoluteFillObject, right: "28%" },
-  gradientTop: { position: "absolute", top: 0, left: 0, right: 0, height: 180 },
-  gradientBottom: { position: "absolute", bottom: 0, left: 0, right: 0, height: 240 },
+  // Left gradient: only covers left ~55% so backdrop stays visible on the right
+  gradientLeft: { ...StyleSheet.absoluteFillObject, right: "38%" },
+  gradientTop: { position: "absolute", top: 0, left: 0, right: 0, height: 120 },
+  gradientBottom: { position: "absolute", bottom: 0, left: 0, right: 0, height: 300 },
 
   scroll: { flex: 1 },
-  scrollContent: { paddingTop: 44, paddingHorizontal: 64 },
+  scrollContent: { paddingTop: 52, paddingHorizontal: 80 },
 
-  heroSection: { gap: 28, marginBottom: 16 },
-  topRow: { flexDirection: "row", gap: 40, alignItems: "flex-start" },
+  heroSection: { marginBottom: 24 },
+  topRow: { flexDirection: "row", gap: 56, alignItems: "flex-start" },
+
+  // Poster — much larger for 10-foot viewing
   poster: {
-    width: 220,
-    height: 328,
+    width: 300,
+    height: 450,
     flexShrink: 0,
+    borderRadius: 14,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 24 },
-    shadowOpacity: 0.8,
-    shadowRadius: 32,
+    shadowOffset: { width: 0, height: 32 },
+    shadowOpacity: 0.85,
+    shadowRadius: 40,
   },
-  infoCol: { flex: 1, gap: 14, paddingTop: 8 },
+
+  infoCol: { flex: 1, gap: 18, paddingTop: 6 },
 
   badgeRow: { flexDirection: "row", gap: 10, alignItems: "center", flexWrap: "wrap" },
-  typeBadge: { backgroundColor: Colors.tint, borderRadius: 6, paddingHorizontal: 10, paddingVertical: 5 },
-  typeBadgeText: { fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.4, color: "#fff" },
+  typeBadge: { backgroundColor: Colors.tint, borderRadius: 7, paddingHorizontal: 14, paddingVertical: 6 },
+  typeBadgeText: { fontFamily: "Inter_700Bold", fontSize: 13, letterSpacing: 1.6, color: "#fff" },
   streamBadge: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: Colors.accentGreen + "22", borderRadius: 6,
-    paddingHorizontal: 10, paddingVertical: 5,
+    flexDirection: "row", alignItems: "center", gap: 7,
+    backgroundColor: Colors.accentGreen + "22", borderRadius: 7,
+    paddingHorizontal: 14, paddingVertical: 6,
     borderWidth: 1, borderColor: Colors.accentGreen + "50",
   },
-  streamDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: Colors.accentGreen },
-  streamBadgeText: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: Colors.accentGreen },
+  streamDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.accentGreen },
+  streamBadgeText: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: Colors.accentGreen },
   statusBadge: {
-    backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 6,
-    paddingHorizontal: 10, paddingVertical: 5,
+    backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 7,
+    paddingHorizontal: 14, paddingVertical: 6,
     borderWidth: 1, borderColor: "rgba(255,255,255,0.2)",
   },
-  statusBadgeText: { fontFamily: "Inter_500Medium", fontSize: 11, color: Colors.textSecondary },
+  statusBadgeText: { fontFamily: "Inter_500Medium", fontSize: 13, color: Colors.textSecondary },
 
-  title: { fontFamily: "Inter_700Bold", fontSize: 48, lineHeight: 56, letterSpacing: -1, color: Colors.text },
-  tagline: { fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 22, color: Colors.textSecondary, fontStyle: "italic" },
+  // Title: big and bold for 10-foot readability
+  title: { fontFamily: "Inter_700Bold", fontSize: 66, lineHeight: 74, letterSpacing: -1.5, color: Colors.text },
+  tagline: { fontFamily: "Inter_400Regular", fontSize: 20, lineHeight: 30, color: Colors.textSecondary, fontStyle: "italic" },
 
-  statsRow: { flexDirection: "row", alignItems: "center", gap: 10, flexWrap: "wrap" },
-  statPill: { flexDirection: "row", alignItems: "center", gap: 6 },
-  statPillText: { fontFamily: "Inter_600SemiBold", fontSize: 15, color: Colors.textSecondary },
-  statDivider: { width: 1, height: 16, backgroundColor: Colors.border },
+  statsRow: { flexDirection: "row", alignItems: "center", gap: 12, flexWrap: "wrap" },
+  statPill: { flexDirection: "row", alignItems: "center", gap: 7 },
+  statPillText: { fontFamily: "Inter_600SemiBold", fontSize: 18, color: Colors.textSecondary },
+  statDivider: { width: 1, height: 20, backgroundColor: Colors.border },
 
   tvExtraRow: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
   tvPill: {
-    backgroundColor: Colors.surfaceElevated, borderRadius: 6,
-    paddingHorizontal: 10, paddingVertical: 4,
+    backgroundColor: Colors.surfaceElevated, borderRadius: 7,
+    paddingHorizontal: 12, paddingVertical: 6,
     borderWidth: 1, borderColor: Colors.border,
   },
   tvPillUpcoming: { borderColor: Colors.accentGreen + "50", backgroundColor: Colors.accentGreen + "15", flexDirection: "row", alignItems: "center", gap: 6 },
-  tvPillText: { fontFamily: "Inter_500Medium", fontSize: 12, color: Colors.textSecondary },
+  tvPillText: { fontFamily: "Inter_500Medium", fontSize: 15, color: Colors.textSecondary },
 
-  genreRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
+  genreRow: { flexDirection: "row", gap: 10, flexWrap: "wrap" },
   genreTag: {
-    backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 6,
-    paddingHorizontal: 12, paddingVertical: 5,
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.15)",
+    backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 7,
+    paddingHorizontal: 16, paddingVertical: 7,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.18)",
   },
-  genreText: { fontFamily: "Inter_500Medium", fontSize: 13, color: Colors.textSecondary },
+  genreText: { fontFamily: "Inter_500Medium", fontSize: 15, color: Colors.textSecondary },
 
-  overview: { fontFamily: "Inter_400Regular", fontSize: 17, lineHeight: 27, color: Colors.textSecondary },
+  overview: { fontFamily: "Inter_400Regular", fontSize: 20, lineHeight: 32, color: Colors.textSecondary },
 
-  crewRow: { flexDirection: "row", gap: 32, flexWrap: "wrap" },
-  crewItem: { gap: 2 },
-  crewRole: { fontFamily: "Inter_600SemiBold", fontSize: 11, color: Colors.tint, letterSpacing: 0.8, textTransform: "uppercase" },
-  crewName: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.text },
+  crewRow: { flexDirection: "row", gap: 40, flexWrap: "wrap" },
+  crewItem: { gap: 4 },
+  crewRole: { fontFamily: "Inter_600SemiBold", fontSize: 13, color: Colors.tint, letterSpacing: 1, textTransform: "uppercase" },
+  crewName: { fontFamily: "Inter_500Medium", fontSize: 18, color: Colors.text },
 
-  actionsRow: { flexDirection: "row", gap: 14, flexWrap: "wrap" },
+  // Action buttons — large for easy D-pad selection on TV
+  actionsRow: { flexDirection: "row", gap: 18, flexWrap: "wrap", marginTop: 8 },
   actionBtn: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    paddingHorizontal: 28, paddingVertical: 16, borderRadius: 10,
-    borderWidth: 2, borderColor: "transparent",
-    minWidth: 160, justifyContent: "center",
+    flexDirection: "row", alignItems: "center", gap: 12,
+    paddingHorizontal: 40, paddingVertical: 20, borderRadius: 12,
+    borderWidth: 2.5, borderColor: "transparent",
+    minWidth: 210, justifyContent: "center",
   },
   actionBtnPrimary: { backgroundColor: Colors.tint },
   actionBtnSecondary: { backgroundColor: "rgba(255,255,255,0.12)", borderColor: "rgba(255,255,255,0.18)" },
   actionBtnActive: { backgroundColor: Colors.tint + "30", borderColor: Colors.tint + "60" },
   actionBtnFocused: {
     borderColor: Colors.focusRing,
-    shadowColor: Colors.focusRing, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 14,
+    shadowColor: Colors.focusRing, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 18,
   },
-  actionBtnLabel: { fontFamily: "Inter_600SemiBold", fontSize: 17, color: Colors.text },
+  actionBtnLabel: { fontFamily: "Inter_600SemiBold", fontSize: 20, color: Colors.text },
   actionBtnLabelPrimary: { color: "#fff" },
 
   loadingRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12 },
-  loadingText: { fontFamily: "Inter_400Regular", fontSize: 14, color: Colors.textSecondary },
+  loadingText: { fontFamily: "Inter_400Regular", fontSize: 16, color: Colors.textSecondary },
 
-  section: { gap: 20, marginTop: 36 },
-  sectionLabel: { flexDirection: "row", alignItems: "center", gap: 10 },
-  sectionLabelText: { fontFamily: "Inter_700Bold", fontSize: 20, color: Colors.text, letterSpacing: 0.2 },
+  section: { gap: 22, marginTop: 48 },
+  sectionLabel: { flexDirection: "row", alignItems: "center", gap: 12 },
+  sectionLabelText: { fontFamily: "Inter_700Bold", fontSize: 24, color: Colors.text, letterSpacing: 0.2 },
 
   // Where to watch
   providerSection: { gap: 12 },
