@@ -39,7 +39,7 @@ yarn-error.*
 .env.*
 .env*.local
 
-# Replit artifacts
+# Local scratch (never commit)
 .replit-artifact/
 
 # typescript

@@ -23,8 +23,8 @@
   - Added Release `dwarf-with-dsym` configuration for Pods in `ios/Podfile`.
   - Aligned Xcode bundle ID/version/build with Expo config.
 - Cleanup:
-  - Split local `dev` script from Replit-specific `dev:replit`.
-  - Removed Replit router-origin plugin option from `app.json`.
+  - Standardized local `dev` script; removed legacy hosted-dev npm scripts.
+  - Removed third-party router-origin plugin option from `app.json`.
 
 ### Recommended Next Improvements
 

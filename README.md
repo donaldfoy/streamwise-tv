@@ -25,8 +25,6 @@ cd ..
 npm run dev
 ```
 
-Legacy Replit startup is preserved in `npm run dev:replit`.
-
 ### Run (Apple TV Simulator or device)
 
 - Open `ios/StreamWiseTV.xcworkspace` in Xcode (preferred when using Pods)
